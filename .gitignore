@@ -1,2 +1,3 @@
 golang/http3-server/certs/*
 golang/http3-client/certs/*
+golang/http3-client/key
