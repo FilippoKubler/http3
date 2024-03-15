@@ -267,11 +267,26 @@ async def perform_http_request(
         method = "GET"
     elapsed = time.time() - start
 
+    print("\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+    print(f"Perform HTTP/3 {method} Request to {url}\n")
+
+
+    print("\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+    print(f"Got HTTP/3 Response from {url}")
     # print speed
     octets = 0
     for http_event in http_events:
+
+        if isinstance(http_event, HeadersReceived):
+            print('\n'.join('{}: {}'.format(k.decode(), v.decode()) for k, v in http_event.headers))
+
         if isinstance(http_event, DataReceived):
+            print(http_event.data.decode())
             octets += len(http_event.data)
+
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n")
+
+
     logger.info(
         "Response received for %s %s : %d bytes in %.1f s (%.3f Mbps)"
         % (method, urlparse(url).path, octets, elapsed, octets * 8 / elapsed / 1000000)
