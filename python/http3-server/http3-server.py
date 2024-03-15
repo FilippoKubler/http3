@@ -80,10 +80,10 @@ class HttpRequestHandler:
             self.queue.put_nowait({"type": "http.request"})
 
     def http_event_received(self, event: H3Event) -> None:
-        print()
-        print(self.stream_id)
-        print(event)
-        print()
+        # print()
+        # print(self.stream_id)
+        # print(event)
+        # print()
         if isinstance(event, DataReceived):
             self.queue.put_nowait(
                 {
@@ -98,18 +98,18 @@ class HttpRequestHandler:
             )
 
     async def run_asgi(self, app: AsgiApplication) -> None:
-        print(self.stream_id)
+        # print(self.stream_id)
         await app(self.scope, self.receive, self.send)
 
     async def receive(self) -> Dict:
-        print(self.stream_id)
+        # print(self.stream_id)
         return await self.queue.get()
 
     async def send(self, message: Dict) -> None:
-        print()
-        print(self.stream_id)
-        print(message)
-        print()
+        # print()
+        # print(self.stream_id)
+        # print(message)
+        # print()
         if message["type"] == "http.response.start":
             self.connection.send_headers(
                 stream_id=self.stream_id,
@@ -155,7 +155,7 @@ class HttpRequestHandler:
         message = await self.queue.get()
         request = self.scope
 
-        print(self.stream_id)
+        # print(self.stream_id)
         
         method 	= request['method']
         address = "http://localhost:31112" + request['path']
