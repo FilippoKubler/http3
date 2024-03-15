@@ -1,3 +1,7 @@
-golang/http3-server/certs/*
-golang/http3-client/certs/*
+golang/http3-server/certs
+golang/http3-client/certs
 golang/http3-client/key
+
+python/http3-client/certs
+python/http3-client/quic-log
+python/http3-client/keys
