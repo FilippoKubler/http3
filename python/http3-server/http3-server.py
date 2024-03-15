@@ -3,6 +3,7 @@ import asyncio
 import importlib
 import logging
 import time
+import requests
 from collections import deque
 from email.utils import formatdate
 from typing import Callable, Deque, Dict, List, Optional, Union, cast
@@ -35,6 +36,24 @@ AsgiApplication = Callable
 HttpConnection = Union[H0Connection, H3Connection]
 
 SERVER_NAME = "aioquic/" + aioquic.__version__
+UTF_8 = 'utf-8'
+
+
+def print_request(req):
+    print('HTTP/1.1 {method} {url}\n{headers}\n\n{body}'.format(
+        method=req.method,
+        url=req.url,
+        headers='\n'.join('{}: {}'.format(k, v) for k, v in req.headers.items()),
+        body=req.body,
+    ))
+
+def print_response(res):
+    print('HTTP/1.1 {status_code} {reason_phrase}\n{headers}\n\n{body}'.format(
+        status_code=res.status_code,
+        reason_phrase=res.reason,
+        headers='\n'.join('{}: {}'.format(k, v) for k, v in res.headers.items()),
+        body=res.text,
+    ))
 
 
 class HttpRequestHandler:
@@ -61,6 +80,10 @@ class HttpRequestHandler:
             self.queue.put_nowait({"type": "http.request"})
 
     def http_event_received(self, event: H3Event) -> None:
+        print()
+        print(self.stream_id)
+        print(event)
+        print()
         if isinstance(event, DataReceived):
             self.queue.put_nowait(
                 {
@@ -75,12 +98,18 @@ class HttpRequestHandler:
             )
 
     async def run_asgi(self, app: AsgiApplication) -> None:
+        print(self.stream_id)
         await app(self.scope, self.receive, self.send)
 
     async def receive(self) -> Dict:
+        print(self.stream_id)
         return await self.queue.get()
 
     async def send(self, message: Dict) -> None:
+        print()
+        print(self.stream_id)
+        print(message)
+        print()
         if message["type"] == "http.response.start":
             self.connection.send_headers(
                 stream_id=self.stream_id,
@@ -97,9 +126,7 @@ class HttpRequestHandler:
                 data=message.get("body", b""),
                 end_stream=not message.get("more_body", False),
             )
-        elif message["type"] == "http.response.push" and isinstance(
-            self.connection, H3Connection
-        ):
+        elif message["type"] == "http.response.push" and isinstance(self.connection, H3Connection):
             request_headers = [
                 (b":method", b"GET"),
                 (b":scheme", b"https"),
@@ -121,7 +148,53 @@ class HttpRequestHandler:
                     headers=request_headers, stream_ended=True, stream_id=push_stream_id
                 )
             )
+            
         self.transmit()
+
+    async def redirect_request(self):
+        message = await self.queue.get()
+        request = self.scope
+
+        print(self.stream_id)
+        
+        method 	= request['method']
+        address = "http://localhost:31112" + request['path']
+        if method == 'POST':
+            body = message['body'].decode()
+            response = requests.post(address, data=body)
+        elif method == 'GET':
+            response = requests.get(address)
+
+        print("\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+        print(f"Got HTTP/{request['http_version']} {method} Request from {request['client'][0]} to {request['path']}")
+        
+        if response.status_code == 200:
+            print("\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+            print_request(response.request)
+            print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+            print_response(response)
+            print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
+
+            self.connection.send_headers(
+                stream_id=self.stream_id,
+                headers=[
+                    (b":status", str(response.status_code).encode(UTF_8)),
+                    (b"server", SERVER_NAME.encode(UTF_8)),
+                    (b"date", formatdate(time.time(), usegmt=True).encode(UTF_8)),
+                ]
+                + [(str(k).lower().encode(UTF_8), str(v).lower().encode(UTF_8)) for k, v in response.headers.items()],
+            )
+            
+            self.connection.send_data(
+                    stream_id=self.stream_id,
+                    data=response.content if response.text else b"",
+                    end_stream=True,
+                )
+
+        # print("\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n")
+        print("\n**************************************************************************************\n\n")
+        self.transmit()
+		
 
 
 class WebSocketHandler:
@@ -329,7 +402,7 @@ class HttpServerProtocol(QuicConnectionProtocol):
         self._http: Optional[HttpConnection] = None
 
     def http_event_received(self, event: H3Event) -> None:
-        if isinstance(event, HeadersReceived) and event.stream_id not in self._handlers:
+        if isinstance(event, HeadersReceived) and event.stream_id not in self._handlers:            
             authority = None
             headers = []
             http_version = "0.9" if isinstance(self._http, H0Connection) else "3"
@@ -432,7 +505,8 @@ class HttpServerProtocol(QuicConnectionProtocol):
                     transmit=self.transmit,
                 )
             self._handlers[event.stream_id] = handler
-            asyncio.ensure_future(handler.run_asgi(application))
+            asyncio.ensure_future(handler.redirect_request())
+            # asyncio.ensure_future(handler.run_asgi(application))
         elif (
             isinstance(event, (DataReceived, HeadersReceived))
             and event.stream_id in self._handlers
@@ -497,6 +571,11 @@ async def main(
 
 
 if __name__ == "__main__":
+
+    print("\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+    print("~~~~~~~~~~~       Starting Server HTTP/3 - Listening on 0.0.0.0:4433       ~~~~~~~~~~~")
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n")
+
     defaults = QuicConfiguration(is_client=False)
 
     parser = argparse.ArgumentParser(description="QUIC server")
@@ -600,6 +679,11 @@ if __name__ == "__main__":
 
     # load SSL certificate and key
     configuration.load_cert_chain(args.certificate, args.private_key)
+
+    print("[*] Configuration loaded . . .")
+    print("[*] Start!\n")
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n")
+
 
     if uvloop is not None:
         uvloop.install()
