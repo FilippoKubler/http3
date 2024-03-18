@@ -286,6 +286,10 @@ async def perform_http_request(
 
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n")
 
+    print("."*50)
+    print(f"Transcript: {client._quic.tls._transcript}") # riga 1634 di quic/connection.py, update done in tls.py riga 1394
+    print("."*50)
+
 
     logger.info(
         "Response received for %s %s : %d bytes in %.1f s (%.3f Mbps)"
