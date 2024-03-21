@@ -5,6 +5,8 @@ import os
 import pickle
 import ssl
 import time
+import sha2_compressions
+
 from collections import deque
 from typing import BinaryIO, Callable, Deque, Dict, List, Optional, Union, cast
 from urllib.parse import urlparse
@@ -289,7 +291,12 @@ async def perform_http_request(
     print("."*50)
     print(f"Transcript: {client._quic.tls._transcript}") # riga 1634 di quic/connection.py, update done in tls.py riga 1394
     print("."*50)
-
+    print()
+    print("."*50)
+    H_state_tr7 = sha2_compressions.get_H_state(client._quic.tls._transcript.hex())
+    print(f"H_state_tr7: {H_state_tr7}")
+    print("."*50)
+    print()
 
     logger.info(
         "Response received for %s %s : %d bytes in %.1f s (%.3f Mbps)"
