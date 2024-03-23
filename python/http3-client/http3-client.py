@@ -440,11 +440,11 @@ async def main(
                 perform_http_request(
                     client=client,
                     url=url,
-                    data=data,
+                    data=data.split()[i],
                     include=include,
                     output_dir=output_dir,
                 )
-                for url in urls
+                for i, url in enumerate(urls)
             ]
             await asyncio.gather(*coros)
 
