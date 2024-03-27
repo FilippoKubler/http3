@@ -12,8 +12,6 @@ from typing import BinaryIO, Callable, Deque, Dict, List, Optional, Union, cast
 from urllib.parse import urlparse
 
 import aioquic
-import wsproto
-import wsproto.events
 from aioquic.asyncio.client import connect
 from aioquic.asyncio.protocol import QuicConnectionProtocol
 from aioquic.h0.connection import H0_ALPN, H0Connection
@@ -69,59 +67,6 @@ class HttpRequest:
         self.url = url
 
 
-class WebSocket:
-    def __init__(
-        self, http: HttpConnection, stream_id: int, transmit: Callable[[], None]
-    ) -> None:
-        self.http = http
-        self.queue: asyncio.Queue[str] = asyncio.Queue()
-        self.stream_id = stream_id
-        self.subprotocol: Optional[str] = None
-        self.transmit = transmit
-        self.websocket = wsproto.Connection(wsproto.ConnectionType.CLIENT)
-
-    async def close(self, code: int = 1000, reason: str = "") -> None:
-        """
-        Perform the closing handshake.
-        """
-        data = self.websocket.send(
-            wsproto.events.CloseConnection(code=code, reason=reason)
-        )
-        self.http.send_data(stream_id=self.stream_id, data=data, end_stream=True)
-        self.transmit()
-
-    async def recv(self) -> str:
-        """
-        Receive the next message.
-        """
-        return await self.queue.get()
-
-    async def send(self, message: str) -> None:
-        """
-        Send a message.
-        """
-        assert isinstance(message, str)
-
-        data = self.websocket.send(wsproto.events.TextMessage(data=message))
-        self.http.send_data(stream_id=self.stream_id, data=data, end_stream=False)
-        self.transmit()
-
-    def http_event_received(self, event: H3Event) -> None:
-        if isinstance(event, HeadersReceived):
-            for header, value in event.headers:
-                if header == b"sec-websocket-protocol":
-                    self.subprotocol = value.decode()
-        elif isinstance(event, DataReceived):
-            self.websocket.receive_data(event.data)
-
-        for ws_event in self.websocket.events():
-            self.websocket_event_received(ws_event)
-
-    def websocket_event_received(self, event: wsproto.events.Event) -> None:
-        if isinstance(event, wsproto.events.TextMessage):
-            self.queue.put_nowait(event.data)
-
-
 class HttpClient(QuicConnectionProtocol):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -130,7 +75,6 @@ class HttpClient(QuicConnectionProtocol):
         self._http: Optional[HttpConnection] = None
         self._request_events: Dict[int, Deque[H3Event]] = {}
         self._request_waiter: Dict[int, asyncio.Future[Deque[H3Event]]] = {}
-        self._websockets: Dict[int, WebSocket] = {}
 
         if self._quic.configuration.alpn_protocols[0].startswith("hq-"):
             self._http = H0Connection(self._quic)
@@ -155,39 +99,6 @@ class HttpClient(QuicConnectionProtocol):
             HttpRequest(method="POST", url=URL(url), content=data, headers=headers)
         )
 
-    async def websocket(
-        self, url: str, subprotocols: Optional[List[str]] = None
-    ) -> WebSocket:
-        """
-        Open a WebSocket.
-        """
-        request = HttpRequest(method="CONNECT", url=URL(url))
-        stream_id = self._quic.get_next_available_stream_id()
-        websocket = WebSocket(
-            http=self._http, stream_id=stream_id, transmit=self.transmit
-        )
-
-        self._websockets[stream_id] = websocket
-
-        headers = [
-            (b":method", b"CONNECT"),
-            (b":scheme", b"https"),
-            (b":authority", request.url.authority.encode()),
-            (b":path", request.url.full_path.encode()),
-            (b":protocol", b"websocket"),
-            (b"user-agent", USER_AGENT.encode()),
-            (b"sec-websocket-version", b"13"),
-        ]
-        if subprotocols:
-            headers.append(
-                (b"sec-websocket-protocol", ", ".join(subprotocols).encode())
-            )
-        self._http.send_headers(stream_id=stream_id, headers=headers)
-
-        self.transmit()
-
-        return websocket
-
     def http_event_received(self, event: H3Event) -> None:
         if isinstance(event, (HeadersReceived, DataReceived)):
             stream_id = event.stream_id
@@ -197,11 +108,6 @@ class HttpClient(QuicConnectionProtocol):
                 if event.stream_ended:
                     request_waiter = self._request_waiter.pop(stream_id)
                     request_waiter.set_result(self._request_events.pop(stream_id))
-
-            elif stream_id in self._websockets:
-                # websocket
-                websocket = self._websockets[stream_id]
-                websocket.http_event_received(event)
 
             elif event.push_id in self.pushes:
                 # push
@@ -305,13 +211,9 @@ async def perform_http_request(
 
     # output response
     if output_dir is not None:
-        output_path = os.path.join(
-            output_dir, os.path.basename(urlparse(url).path) or "index.html"
-        )
+        output_path = os.path.join(output_dir, os.path.basename(urlparse(url).path) or "index.html")
         with open(output_path, "wb") as output_file:
-            write_response(
-                http_events=http_events, include=include, output_file=output_file
-            )
+            write_response(http_events=http_events, include=include, output_file=output_file)
 
 
 def process_http_pushes(
@@ -336,13 +238,9 @@ def process_http_pushes(
 
         # output response
         if output_dir is not None:
-            output_path = os.path.join(
-                output_dir, os.path.basename(path) or "index.html"
-            )
+            output_path = os.path.join(output_dir, os.path.basename(path) or "index.html")
             with open(output_path, "wb") as output_file:
-                write_response(
-                    http_events=http_events, include=include, output_file=output_file
-                )
+                write_response(http_events=http_events, include=include, output_file=output_file)
 
 
 def write_response(
@@ -383,8 +281,7 @@ async def main(
     parsed = urlparse(urls[0])
     assert parsed.scheme in (
         "https",
-        "wss",
-    ), "Only https:// or wss:// URLs are supported."
+    ), "Only https:// URLs are supported."
     host = parsed.hostname
     if parsed.port is not None:
         port = parsed.port
@@ -421,20 +318,7 @@ async def main(
     ) as client:
         client = cast(HttpClient, client)
 
-        if parsed.scheme == "wss":
-            ws = await client.websocket(urls[0], subprotocols=["chat", "superchat"])
-
-            # send some messages and receive reply
-            for i in range(2):
-                message = "Hello {}, WebSocket!".format(i)
-                print("> " + message)
-                await ws.send(message)
-
-                message = await ws.recv()
-                print("< " + message)
-
-            await ws.close()
-        else:
+        if parsed.scheme == "https":
             # perform request
             coros = [
                 perform_http_request(
