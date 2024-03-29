@@ -5,7 +5,10 @@ import os
 import pickle
 import ssl
 import time
+import json
+
 import sha2_compressions
+import hashlib
 
 from collections import deque
 from typing import BinaryIO, Callable, Deque, Dict, List, Optional, Union, cast
@@ -156,6 +159,7 @@ async def perform_http_request(
     data: Optional[str],
     include: bool,
     output_dir: Optional[str],
+    print_params: bool,
 ) -> None:
     # perform request
     start = time.time()
@@ -194,15 +198,42 @@ async def perform_http_request(
 
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n")
 
-    print("."*50)
-    print(f"Transcript: {client._quic.tls._transcript}") # riga 1634 di quic/connection.py, update done in tls.py riga 1394
-    print("."*50)
-    print()
-    print("."*50)
-    H_state_tr7 = sha2_compressions.get_H_state(client._quic.tls._transcript.hex())
-    print(f"H_state_tr7: {H_state_tr7}")
-    print("."*50)
-    print()
+    params = {}
+
+    params['client_hello_transcript']                   = bytes.hex(client._quic.tls._client_hello_transcript)
+
+    params['server_hello_transcript']                   = bytes.hex(client._quic.tls._server_hello_transcript)
+    params['server_hello_transcript_length']            = len(client._quic.tls._server_hello_transcript)
+    params['server_hello_transcript_hash']              = hashlib.sha256(client._quic.tls._server_hello_transcript).digest().hex()
+
+    params['encrypted_extensions_transcript']           = bytes.hex(client._quic.tls._encrypted_extensions_transcript) # riga 1634 di quic/connection.py, update done in tls.py _handle_reassembled_message (riga 1394)
+    params['H_state_tr7']                               = sha2_compressions.get_H_state(client._quic.tls._encrypted_extensions_transcript.hex())
+
+    params['certificate_transcript']                    = bytes.hex(client._quic.tls._certificate_transcript)
+
+    params['certificate_verify_transcript']             = bytes.hex(client._quic.tls._certificate_verify_transcript)
+    params['certificate_verify_transcript_length']      = len(client._quic.tls._certificate_verify_transcript)
+    params['certificate_verify_tail_transcript']        = bytes.hex(client._quic.tls._certificate_verify_transcript[44:])
+    params['certificate_verify_tail_transcript_length'] = len(client._quic.tls._certificate_verify_transcript[44:])
+
+    params['finished_transcript']                       = bytes.hex(client._quic.tls._finished_transcript)
+
+    params['handshake_secret']                          = ''
+    params['handshake_transcript']                      = bytes.hex(client._quic.tls._transcript)
+    params['handshake_transcript_hash']                 = hashlib.sha256(client._quic.tls._transcript).digest().hex()
+    params['handshake_transcript_length']               = len(client._quic.tls._transcript)
+
+
+    if print_params:
+        print()
+        print(".........................  PARAMS  .........................")
+        print(json.dumps(params, indent=2))
+        print("."*60)
+        print()
+    else:
+        with open('params.json', 'w') as f:
+            json.dump(params, f, indent=2)
+
 
     logger.info(
         "Response received for %s %s : %d bytes in %.1f s (%.3f Mbps)"
@@ -276,6 +307,7 @@ async def main(
     output_dir: Optional[str],
     local_port: int,
     zero_rtt: bool,
+    print_params: bool,
 ) -> None:
     # parse URL
     parsed = urlparse(urls[0])
@@ -327,6 +359,7 @@ async def main(
                     data=data.split()[i],
                     include=include,
                     output_dir=output_dir,
+                    print_params=print_params,
                 )
                 for i, url in enumerate(urls)
             ]
@@ -428,6 +461,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "--zero-rtt", action="store_true", help="try to send requests using 0-RTT"
     )
+    parser.add_argument(
+        "--print-params", 
+        action='store_true', 
+        help="print or store TLS1.3 parameters"
+    )
 
     args = parser.parse_args()
 
@@ -467,7 +505,7 @@ if __name__ == "__main__":
             with open(args.session_ticket, "rb") as fp:
                 configuration.session_ticket = pickle.load(fp)
         except FileNotFoundError:
-            pass
+            pass 
 
     if uvloop is not None:
         uvloop.install()
@@ -480,5 +518,6 @@ if __name__ == "__main__":
             output_dir=args.output_dir,
             local_port=args.local_port,
             zero_rtt=args.zero_rtt,
+            print_params=True if args.print_params else False
         )
     )

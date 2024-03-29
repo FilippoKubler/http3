@@ -8,5 +8,6 @@ python/http3-server/quic-log
 python/http3-client/certs
 python/http3-client/quic-log
 python/http3-client/keys
+python/http3-client/params.json
 
 python/http3-server/__pycache__
