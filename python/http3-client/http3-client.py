@@ -128,22 +128,27 @@ class HttpClient(QuicConnectionProtocol):
 
     async def _request(self, request: HttpRequest) -> Deque[H3Event]:
         stream_id = self._quic.get_next_available_stream_id()
+
+        headers = [
+            (b":method", request.method.encode()),
+            (b":scheme", request.url.scheme.encode()),
+            (b":authority", request.url.authority.encode()),
+            (b":path", request.url.full_path.encode()),
+            (b"user-agent", USER_AGENT.encode()),
+        ] + [(k.encode(), v.encode()) for (k, v) in request.headers.items()]
+
         self._http.send_headers(
             stream_id=stream_id,
-            headers=[
-                (b":method", request.method.encode()),
-                (b":scheme", request.url.scheme.encode()),
-                (b":authority", request.url.authority.encode()),
-                (b":path", request.url.full_path.encode()),
-                (b"user-agent", USER_AGENT.encode()),
-            ]
-            + [(k.encode(), v.encode()) for (k, v) in request.headers.items()],
+            headers=headers,
             end_stream=not request.content,
         )
+
         if request.content:
             self._http.send_data(
                 stream_id=stream_id, data=request.content, end_stream=True
             )
+
+        self._http._http3_request = self._quic._streams[stream_id].sender._buffer
 
         waiter = self._loop.create_future()
         self._request_events[stream_id] = deque()
@@ -161,6 +166,7 @@ async def perform_http_request(
     output_dir: Optional[str],
     print_params: bool,
 ) -> None:
+
     # perform request
     start = time.time()
     if data is not None:
@@ -218,10 +224,12 @@ async def perform_http_request(
 
     params['finished_transcript']                       = bytes.hex(client._quic.tls._finished_transcript)
 
-    params['handshake_secret']                          = ''
+    params['handshake_secret']                          = client._quic.tls._client_hanshake_secret
     params['handshake_transcript']                      = bytes.hex(client._quic.tls._transcript)
     params['handshake_transcript_hash']                 = hashlib.sha256(client._quic.tls._transcript).digest().hex()
     params['handshake_transcript_length']               = len(client._quic.tls._transcript)
+
+    params['http3_request']                             = ''
 
 
     if print_params:
