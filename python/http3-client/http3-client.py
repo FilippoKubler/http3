@@ -6,6 +6,7 @@ import pickle
 import ssl
 import time
 import json
+import copy
 
 import sha2_compressions
 import hashlib
@@ -148,7 +149,7 @@ class HttpClient(QuicConnectionProtocol):
                 stream_id=stream_id, data=request.content, end_stream=True
             )
 
-        self._http._http3_request = self._quic._streams[stream_id].sender._buffer
+        self._http._http3_request = copy.deepcopy(self._quic._streams[stream_id].sender._buffer)
 
         waiter = self._loop.create_future()
         self._request_events[stream_id] = deque()
@@ -210,26 +211,31 @@ async def perform_http_request(
 
     params['server_hello_transcript']                   = bytes.hex(client._quic.tls._server_hello_transcript)
     params['server_hello_transcript_length']            = len(client._quic.tls._server_hello_transcript)
-    params['server_hello_transcript_hash']              = hashlib.sha256(client._quic.tls._server_hello_transcript).digest().hex()
+
+    params['client_server_hello_transcript']            = bytes.hex(client._quic.tls._client_hello_transcript + client._quic.tls._server_hello_transcript) # ch_sh = pt2_line
+    params['client_server_hello_transcript_hash']       = hashlib.sha256(client._quic.tls._client_hello_transcript + client._quic.tls._server_hello_transcript).digest().hex() # H2
 
     params['encrypted_extensions_transcript']           = bytes.hex(client._quic.tls._encrypted_extensions_transcript) # riga 1634 di quic/connection.py, update done in tls.py _handle_reassembled_message (riga 1394)
     params['H_state_tr7']                               = sha2_compressions.get_H_state(client._quic.tls._encrypted_extensions_transcript.hex())
 
+
+    # Da qui in poi i transcript derivano dai messaggi cifrati
     params['certificate_transcript']                    = bytes.hex(client._quic.tls._certificate_transcript)
 
     params['certificate_verify_transcript']             = bytes.hex(client._quic.tls._certificate_verify_transcript)
     params['certificate_verify_transcript_length']      = len(client._quic.tls._certificate_verify_transcript)
-    params['certificate_verify_tail_transcript']        = bytes.hex(client._quic.tls._certificate_verify_transcript[44:])
-    params['certificate_verify_tail_transcript_length'] = len(client._quic.tls._certificate_verify_transcript[44:])
+    params['certificate_verify_tail_transcript']        = bytes.hex(client._quic.tls._certificate_verify_transcript[-12:]) # 12 byte per completare il blocco con i 20 del finished (sha256)
+    params['certificate_verify_tail_transcript_length'] = len(client._quic.tls._certificate_verify_transcript[-12:])
 
-    params['finished_transcript']                       = bytes.hex(client._quic.tls._finished_transcript)
+    params['finished_transcript']                       = bytes.hex(client._quic.tls._finished_transcript) # 52 byte = 20 + 32 
 
-    params['handshake_secret']                          = client._quic.tls._client_hanshake_secret
+    params['handshake_secret']                          = client._quic.tls._handshake_secret # HS
+
     params['handshake_transcript']                      = bytes.hex(client._quic.tls._transcript)
     params['handshake_transcript_hash']                 = hashlib.sha256(client._quic.tls._transcript).digest().hex()
-    params['handshake_transcript_length']               = len(client._quic.tls._transcript)
+    params['handshake_transcript_length']               = len(client._quic.tls._transcript) # TR3_len
 
-    params['http3_request']                             = ''
+    params['http3_request']                             = client._http._http3_request.hex()
 
 
     if print_params:
