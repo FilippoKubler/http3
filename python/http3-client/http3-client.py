@@ -215,7 +215,7 @@ async def perform_http_request(
     params['client_server_hello_transcript']            = bytes.hex(client._quic.tls._client_hello_transcript + client._quic.tls._server_hello_transcript) # ch_sh = pt2_line
     params['client_server_hello_transcript_hash']       = hashlib.sha256(client._quic.tls._client_hello_transcript + client._quic.tls._server_hello_transcript).digest().hex() # H2
 
-    params['encrypted_extensions_transcript']           = bytes.hex(client._quic.tls._encrypted_extensions_transcript) # riga 1634 di quic/connection.py, update done in tls.py _handle_reassembled_message (riga 1394)
+    params['encrypted_extensions_transcript']           = bytes.hex(client._quic.tls._encrypted_extensions_transcript) # update done in tls.py _handle_reassembled_message (riga 1394)
     params['H_state_tr7']                               = sha2_compressions.get_H_state(client._quic.tls._encrypted_extensions_transcript.hex())
 
 
@@ -236,6 +236,9 @@ async def perform_http_request(
     params['handshake_transcript_length']               = len(client._quic.tls._transcript) # TR3_len
 
     params['http3_request']                             = client._http._http3_request.hex()
+
+    # CLIENT Packet Encryption -> aioquic/quic/packet_builder.py:338 (_end_packet function)
+    # SERVER Packet Decryption -> aioquic/quic/connection.py:1137 (receive_datagram function)
 
 
     if print_params:
