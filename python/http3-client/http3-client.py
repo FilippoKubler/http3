@@ -207,6 +207,39 @@ async def perform_http_request(
 
     params = {}
 
+    params['client_hello_transcript']                   = client._quic.packets_transcript_json['CLIENT-ClientHello']['plaintext']
+
+    params['server_hello_transcript']                   = client._quic.packets_transcript_json['SERVER-ServerHello']['plaintext']
+    params['server_hello_transcript_length']            = client._quic.packets_transcript_json['SERVER-ServerHello']['length']
+
+    params['client_server_hello_transcript']            = params['client_hello_transcript'] + params['server_hello_transcript'] # ch_sh = pt2_line
+    params['client_server_hello_transcript_hash']       = hashlib.sha256(bytes.fromhex(params['client_server_hello_transcript'])).digest().hex() # H2
+
+    # Da qui in poi i transcript derivano dai messaggi cifrati
+    params['encrypted_extensions_transcript']           = client._quic.packets_transcript_json['SERVER-EncryptedExtensions']['ciphertext']
+    params['H_state_tr7']                               = sha2_compressions.get_H_state(params['client_hello_transcript'] + params['server_hello_transcript'] + params['encrypted_extensions_transcript']) # H_state_tr7 - the H-state of SHA up to the last whole block of TR7
+
+    params['certificate_transcript']                    = client._quic.packets_transcript_json['SERVER-Certificate']['ciphertext']
+
+    params['certificate_verify_transcript']             = client._quic.packets_transcript_json['SERVER-CertificateVerify']['ciphertext']
+    params['certificate_verify_transcript_length']      = client._quic.packets_transcript_json['SERVER-CertificateVerify']['length']
+    params['certificate_verify_tail_transcript']        = params['certificate_verify_transcript'][-28:] # 28 byte per completare il blocco con i primi 4 bytes del Server Finished (sha256)
+    params['certificate_verify_tail_transcript_length'] = len(params['certificate_verify_tail_transcript'])
+
+    params['server_finished_transcript']                = client._quic.packets_transcript_json['SERVER-Finished']['ciphertext'] # 36 byte = 4 + 32
+
+    params['handshake_secret']                          = client._quic.tls._handshake_secret # HS
+
+    params['handshake_transcript']                      = bytes.hex(client._quic.tls._transcript)
+    params['handshake_transcript_hash']                 = hashlib.sha256(client._quic.tls._transcript).digest().hex()
+    params['handshake_transcript_length']               = len(params['handshake_transcript']) # TR3_len
+
+    params['http3_request']                             = client._quic.packets_transcript_json['CLIENT-HTTP3 REQUEST']['ciphertext']
+
+    # CLIENT Packet Encryption -> aioquic/quic/packet_builder.py:338 (_end_packet function)
+    # SERVER Packet Decryption -> aioquic/quic/connection.py:1137 (receive_datagram function)
+    
+    """
     params['client_hello_transcript']                   = bytes.hex(client._quic.tls._client_hello_transcript)
 
     params['server_hello_transcript']                   = bytes.hex(client._quic.tls._server_hello_transcript)
@@ -214,12 +247,10 @@ async def perform_http_request(
 
     params['client_server_hello_transcript']            = bytes.hex(client._quic.tls._client_hello_transcript + client._quic.tls._server_hello_transcript) # ch_sh = pt2_line
     params['client_server_hello_transcript_hash']       = hashlib.sha256(client._quic.tls._client_hello_transcript + client._quic.tls._server_hello_transcript).digest().hex() # H2
-
+    
     params['encrypted_extensions_transcript']           = bytes.hex(client._quic.tls._encrypted_extensions_transcript) # update done in tls.py _handle_reassembled_message (riga 1394)
     params['H_state_tr7']                               = sha2_compressions.get_H_state(client._quic.tls._encrypted_extensions_transcript.hex())
 
-
-    # Da qui in poi i transcript derivano dai messaggi cifrati
     params['certificate_transcript']                    = bytes.hex(client._quic.tls._certificate_transcript)
 
     params['certificate_verify_transcript']             = bytes.hex(client._quic.tls._certificate_verify_transcript)
@@ -236,10 +267,7 @@ async def perform_http_request(
     params['handshake_transcript_length']               = len(client._quic.tls._transcript) # TR3_len
 
     params['http3_request']                             = client._http._http3_request.hex()
-
-    # CLIENT Packet Encryption -> aioquic/quic/packet_builder.py:338 (_end_packet function)
-    # SERVER Packet Decryption -> aioquic/quic/connection.py:1137 (receive_datagram function)
-
+    """
 
     if print_params:
         print()
