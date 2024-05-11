@@ -13,3 +13,4 @@ python/http3-client/params.json
 python/http3-server/__pycache__/
 python/http3-client/__pycache__/
 python/http3-client/quic_exchange.pcap
+python/http3-client/params.txt

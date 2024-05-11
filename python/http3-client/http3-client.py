@@ -274,7 +274,7 @@ async def perform_http_request(
     params['handshake'] = {
         'transcript': params['client_server_hello']['transcript'] + params['extensions_certificate_certificatevrfy_serverfinished']['transcript'], # TR3 = CH || SH || ENCEXT || CERT || CERTVRFY || FINISHED (CH e SH in chiaro, gli altri cifrati)
         'length': params['client_server_hello']['length'] + params['extensions_certificate_certificatevrfy_serverfinished']['length'], # TR3_len
-        'hash': hashlib.sha256(client._quic.tls._transcript).digest().hex(),
+        'hash': hashlib.sha256(client._quic.tls._transcript).digest().hex(), # H3
         'secret': client._quic.tls._handshake_secret # HS
     }
 
@@ -300,6 +300,27 @@ async def perform_http_request(
         with open('params.json', 'w') as f:
             json.dump(params, f, indent=2)
 
+    with open('params.txt', 'w') as f:
+        f.write(params['handshake']['secret']                                                   + '\n') # HS
+        f.write(params['client_server_hello']['hash']                                           + '\n') # H_2
+        f.write(params['client_server_hello']['transcript']                                     + '\n') # PT_2
+        f.write(str(params['certificate_verify']['length'])                                     + '\n') # Certificate Verify length
+        f.write(params['certificate_verify']['tail']                                            + '\n') # Certificate Verify Tail
+        f.write(str(params['certificate_verify']['tail_length'])                                + '\n') # Certificate Verify Tail length
+        f.write(params['server_finished']['transcript']                                         + '\n') # Server Finished
+        f.write(str(params['server_finished']['length'])                                        + '\n') # Server Finished length
+        f.write(params['extensions_certificate_certificatevrfy_serverfinished']['transcript']   + '\n') # CT_3
+        f.write(str(params['extensions_certificate_certificatevrfy_serverfinished']['length'])  + '\n') # CT_3 length
+        f.write(params['http3']['request']                                                      + '\n') # HTTP3 Request
+        f.write(params['encrypted_extensions']['H_state_tr7']                                   + '\n') # H_state_tr7
+        f.write(str(params['handshake']['length'])                                              + '\n') # TR_3 length
+
+        f.write('~'*10 + '    EXPECTED VALUES    ' + '~'*10 + '\n')
+        f.write(f'HTTP3 Request Plaintext: {client._quic.packets_transcript_json["CLIENT-HTTP3 REQUEST"]["plaintext"]}\n')
+        f.write(f'H3: {params["handshake"]["hash"]}\n')
+        f.write(f'Server HS Secret: {client._quic.tls._server_handshake_secret}\n')
+        f.write(f'Client AP Secret: {client._quic.tls._client_application_secret}\n')
+        
 
     logger.info(
         "Response received for %s %s : %d bytes in %.1f s (%.3f Mbps)"
