@@ -7,6 +7,7 @@ import ssl
 import time
 import json
 import copy
+import subprocess
 
 import sha2_compressions
 import hashlib
@@ -320,7 +321,34 @@ async def perform_http_request(
         f.write(f'H3: {params["handshake"]["hash"]}\n')
         f.write(f'Server HS Secret: {client._quic.tls._server_handshake_secret}\n')
         f.write(f'Client AP Secret: {client._quic.tls._client_application_secret}\n')
+
+        # path = /function/figlet
+
+    print(client._quic.packets_transcript_json["CLIENT-HTTP3 REQUEST"]["plaintext"])
+    frame_data = bytes.fromhex(client._quic.packets_transcript_json["CLIENT-HTTP3 REQUEST"]["plaintext"][4:102])
+    print(frame_data.hex())
+    decoder, headers = client._http._decoder.feed_header(0, frame_data)
+    print('Decoder:', decoder, decoder.hex())
+    print('Headers:', headers)
+    print()
+
+    encoder, frame_data = client._http._encoder.encode(0, [(b':path', b'/function/figlet')])
+    print('Encoder:', encoder, encoder.hex())
+    print('Frame Data:', frame_data, frame_data.hex())
+
+    # Headers: [(b':method', b'POST'), (b':scheme', b'https'), (b':authority', b'192.168.1.126:4433'), (b':path', b'/function/figlet'), (b'user-agent', b'aioquic/1.0.0'), (b'content-length', b'9'), (b'content-type', b'application/x-www-form-urlencoded')]
+
+    # Frame Data: 0000d4d7508d0be25c2e3cb857089cb8d34cb3518c625b6a224c7a9894d35054ff5f5089198fdad31180ae05c1540139ef
+
+    # Request: 01310000d4d7508d0be25c2e3cb857089cb8d34cb3518c625b6a224c7a9894d35054ff5f5089198fdad31180ae05c1540139ef0009485454503364617461
+
+    # Decoded Headers: [(b':method', b'POST'), (b':scheme', b'https'), (b':authority', b'192.168.1.126:4433'), (b':path', b'/function/figlet'), (b'user-agent', b'aioquic/1.0.0'), (b'content-length', b'9'), (b'content-type', b'application/x-www-form-urlencoded')]
+
+    # c18c625b6a224c7a9894d35054ff - 028010
         
+
+    # filename = 'files/'
+    # subprocess.run(('java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.HTTP_String run files/'+filename+" "+allowed + ' ' + tls_conn._clientRandom.hex() + ' ' + str(packetNumber)).split())
 
     logger.info(
         "Response received for %s %s : %d bytes in %.1f s (%.3f Mbps)"
