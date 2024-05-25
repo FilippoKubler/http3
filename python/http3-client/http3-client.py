@@ -8,6 +8,7 @@ import time
 import json
 import copy
 import subprocess
+import urllib.parse
 
 import sha2_compressions
 import hashlib
@@ -33,7 +34,7 @@ from aioquic.quic.logger import QuicFileLogger
 from aioquic.tls import CipherSuite, SessionTicket
 
 try:
-    import uvloop
+    import uvloop # type: ignore
 except ImportError:
     uvloop = None
 
@@ -43,6 +44,207 @@ HttpConnection = Union[H0Connection, H3Connection]
 
 USER_AGENT = "aioquic/" + aioquic.__version__
 
+
+
+"""
+HPACK Huffman Coding Table (GOOGLE) - https://www.rfc-editor.org/rfc/rfc7541.html#appendix-B
+Used in QPACK too
+"""
+huffman_coding = {
+    ' ':    '010100',
+    '!':    '1111111000',
+    '"':    '1111111001',
+    '#':    '111111111010',
+    '$':    '1111111111001',
+    '%':    '010101',
+    '&':    '11111000',
+    '\'':   '11111111010',
+    '(':    '1111111010',
+    ')':    '1111111011',
+    '*':    '11111001',
+    '+':    '11111111011',
+    ',':    '11111010',
+    '-':    '010110',
+    '.':    '010111',
+    '/':    '011000',
+    '0':    '00000',
+    '1':    '00001',
+    '2':    '00010',
+    '3':    '011001',
+    '4':    '011010',
+    '5':    '011011',
+    '6':    '011100',
+    '7':    '011101',
+    '8':    '011110',
+    '9':    '011111',
+    ':':    '1011100',
+    ';':    '11111011',
+    '<':    '111111111111100',
+    '=':    '100000',
+    '>':    '111111111011',
+    '?':    '1111111100',
+    '@':    '1111111111010',
+    'A':    '100001',
+    'B':    '1011101',
+    'C':    '1011110',
+    'D':    '1011111',
+    'E':    '1100000',
+    'F':    '1100001',
+    'G':    '1100010',
+    'H':    '1100011',
+    'I':    '1100100',
+    'J':    '1100101',
+    'K':    '1100110',
+    'L':    '1100111',
+    'M':    '1101000',
+    'N':    '1101001',
+    'O':    '1101010',
+    'P':    '1101011',
+    'Q':    '1101100',
+    'R':    '1101101',
+    'S':    '1101110',
+    'T':    '1101111',
+    'U':    '1110000',
+    'V':    '1110001',
+    'W':    '1110010',
+    'X':    '11111100',
+    'Y':    '1110011',
+    'Z':    '11111101',
+    '[':    '1111111111011',
+    '\\':   '1111111111111110000',
+    ']':    '1111111111100',
+    '^':    '11111111111100',
+    '_':    '100010',
+    '`':    '111111111111101',
+    'a':    '00011',
+    'b':    '100011',
+    'c':    '00100',
+    'd':    '100100',
+    'e':    '00101',
+    'f':    '100101',
+    'g':    '100110',
+    'h':    '100111',
+    'i':    '00110',
+    'j':    '1110100',
+    'k':    '1110101',
+    'l':    '101000',
+    'm':    '101001',
+    'n':    '101010',
+    'o':    '00111',
+    'p':    '101011',
+    'q':    '1110110',
+    'r':    '101100',
+    's':    '01000',
+    't':    '01001',
+    'u':    '101101',
+    'v':    '1110111',
+    'w':    '1111000',
+    'x':    '1111001',
+    'y':    '1111010',
+    'z':    '1111011',
+    '{':    '111111111111110',
+    '|':    '11111111100',
+    '}':    '11111111111101',
+    '~':    '1111111111101',
+}
+
+huffman_decoding = {
+    '010100':               ' ',
+    '1111111000':           '!',
+    '1111111001':           '"',
+    '111111111010':         '#',
+    '1111111111001':        '$',
+    '010101':               '%',
+    '11111000':             '&',
+    '11111111010':          '\'',
+    '1111111010':           '(',
+    '1111111011':           ')',
+    '11111001':             '*',
+    '11111111011':          '+',
+    '11111010':             ',',
+    '010110':               '-',
+    '010111':               '.',
+    '011000':               '/',
+    '00000':                '0',
+    '00001':                '1',
+    '00010':                '2',
+    '011001':               '3',
+    '011010':               '4',
+    '011011':               '5',
+    '011100':               '6',
+    '011101':               '7',
+    '011110':               '8',
+    '011111':               '9',
+    '1011100':              ',',
+    '11111011':             ';',
+    '111111111111100':      '<',
+    '100000':               '=',
+    '111111111011':         '>',
+    '1111111100':           '?',
+    '1111111111010':        '@',
+    '100001':               'A',
+    '1011101':              'B',
+    '1011110':              'C',
+    '1011111':              'D',
+    '1100000':              'E',
+    '1100001':              'F',
+    '1100010':              'G',
+    '1100011':              'H',
+    '1100100':              'I',
+    '1100101':              'J',
+    '1100110':              'K',
+    '1100111':              'L',
+    '1101000':              'M',
+    '1101001':              'N',
+    '1101010':              'O',
+    '1101011':              'P',
+    '1101100':              'Q',
+    '1101101':              'R',
+    '1101110':              'S',
+    '1101111':              'T',
+    '1110000':              'U',
+    '1110001':              'V',
+    '1110010':              'W',
+    '11111100':             'X',
+    '1110011':              'Y',
+    '11111101':             'Z',
+    '1111111111011':        '[',
+    '1111111111111110000':  '\\',
+    '1111111111100':        ']',
+    '11111111111100':       '^',
+    '100010':               '_',
+    '111111111111101':      '`',
+    '00011':                'a',
+    '100011':               'b',
+    '00100':                'c',
+    '100100':               'd',
+    '00101':                'e',
+    '100101':               'f',
+    '100110':               'g',
+    '100111':               'h',
+    '00110':                'i',
+    '1110100':              'j',
+    '1110101':              'k',
+    '101000':               'l',
+    '101001':               'm',
+    '101010':               'n',
+    '00111':                'o',
+    '101011':               'p',
+    '1110110':              'q',
+    '101100':               'r',
+    '01000':                's',
+    '01001':                't',
+    '101101':               'u',
+    '1110111':              'v',
+    '1111000':              'w',
+    '1111001':              'x',
+    '1111010':              'y',
+    '1111011':              'z',
+    '111111111111110':      '{',
+    '11111111100':          '|',
+    '11111111111101':       '}',
+    '1111111111101':        '~',
+}
 
 
 def get_tail_minus_36(transcript: str) -> str:
@@ -58,6 +260,10 @@ def get_tail_minus_36(transcript: str) -> str:
         output += transcript[2*j : (2*j) + 2]
 
     return output
+
+
+def round_up(x):
+    return ((x + 7) & (-8))
 
 
 
@@ -288,6 +494,14 @@ async def perform_http_request(
         'url_length': 0 # len(url_bytes)
     }
 
+    path = urllib.parse.urlparse(url).path
+    huffman_path_coding = ''
+    for char in path:
+        huffman_path_coding += huffman_coding[char]
+    
+    params['http3']['huffman_path_encoding'] = hex(int(huffman_path_coding.ljust(round_up(len(huffman_path_coding)), '1'), 2))[2:]
+
+
     # CLIENT Packet Encryption -> aioquic/quic/packet_builder.py:338 (_end_packet function)
     # SERVER Packet Decryption -> aioquic/quic/connection.py:1137 (receive_datagram function)
 
@@ -315,6 +529,7 @@ async def perform_http_request(
         f.write(params['http3']['request']                                                      + '\n') # HTTP3 Request
         f.write(params['encrypted_extensions']['H_state_tr7']                                   + '\n') # H_state_tr7
         f.write(str(params['handshake']['length'])                                              + '\n') # TR_3 length
+        f.write(params['http3']['huffman_path_encoding']                                        + '\n') # Huffman Path Encoding
 
         f.write('~'*10 + '    EXPECTED VALUES    ' + '~'*10 + '\n')
         f.write(f'HTTP3 Request Plaintext: {client._quic.packets_transcript_json["CLIENT-HTTP3 REQUEST"]["plaintext"]}\n')
@@ -322,30 +537,18 @@ async def perform_http_request(
         f.write(f'Server HS Secret: {client._quic.tls._server_handshake_secret}\n')
         f.write(f'Client AP Secret: {client._quic.tls._client_application_secret}\n')
 
-        # path = /function/figlet
+    # print(client._quic.packets_transcript_json["CLIENT-HTTP3 REQUEST"]["plaintext"])
+    # frame_data = bytes.fromhex(client._quic.packets_transcript_json["CLIENT-HTTP3 REQUEST"]["plaintext"][4:102])
+    # print(frame_data.hex())
+    # decoder, headers = client._http._decoder.feed_header(0, frame_data)
+    # print('Decoder:', decoder, decoder.hex())
+    # print('Headers:', headers)
+    # print()
 
-    print(client._quic.packets_transcript_json["CLIENT-HTTP3 REQUEST"]["plaintext"])
-    frame_data = bytes.fromhex(client._quic.packets_transcript_json["CLIENT-HTTP3 REQUEST"]["plaintext"][4:102])
-    print(frame_data.hex())
-    decoder, headers = client._http._decoder.feed_header(0, frame_data)
-    print('Decoder:', decoder, decoder.hex())
-    print('Headers:', headers)
-    print()
+    # encoder, frame_data = client._http._encoder.encode(0, [(b':path', b'/function/figlet')])
+    # print('Encoder:', encoder, encoder.hex())
+    # print('Frame Data:', frame_data, frame_data.hex())
 
-    encoder, frame_data = client._http._encoder.encode(0, [(b':path', b'/function/figlet')])
-    print('Encoder:', encoder, encoder.hex())
-    print('Frame Data:', frame_data, frame_data.hex())
-
-    # Headers: [(b':method', b'POST'), (b':scheme', b'https'), (b':authority', b'192.168.1.126:4433'), (b':path', b'/function/figlet'), (b'user-agent', b'aioquic/1.0.0'), (b'content-length', b'9'), (b'content-type', b'application/x-www-form-urlencoded')]
-
-    # Frame Data: 0000d4d7508d0be25c2e3cb857089cb8d34cb3518c625b6a224c7a9894d35054ff5f5089198fdad31180ae05c1540139ef
-
-    # Request: 01310000d4d7508d0be25c2e3cb857089cb8d34cb3518c625b6a224c7a9894d35054ff5f5089198fdad31180ae05c1540139ef0009485454503364617461
-
-    # Decoded Headers: [(b':method', b'POST'), (b':scheme', b'https'), (b':authority', b'192.168.1.126:4433'), (b':path', b'/function/figlet'), (b'user-agent', b'aioquic/1.0.0'), (b'content-length', b'9'), (b'content-type', b'application/x-www-form-urlencoded')]
-
-    # c18c625b6a224c7a9894d35054ff - 028010
-        
 
     # filename = 'files/'
     # subprocess.run(('java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.HTTP_String run files/'+filename+" "+allowed + ' ' + tls_conn._clientRandom.hex() + ' ' + str(packetNumber)).split())
