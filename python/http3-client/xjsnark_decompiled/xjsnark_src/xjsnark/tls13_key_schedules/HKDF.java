@@ -93,13 +93,13 @@ public class HKDF {
 
   public static UnsignedInteger[] hkdf_expand_derive_tk(UnsignedInteger[] secret, int key_length) {
     // For AES GCM 128, the key length is 16 
-    UnsignedInteger[] hkdf_label = get_tls_hkdf_label(key_length, "key", (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{0}, 8));
+    UnsignedInteger[] hkdf_label = get_tls_hkdf_label(key_length, "quic key", (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{0}, 8));
     return Util.get_prefix(hkdf_expand(secret, hkdf_label), key_length);
   }
 
   public static UnsignedInteger[] hkdf_expand_derive_iv(UnsignedInteger[] secret, int iv_length) {
     // For AES GCM 128, the iv length is 12 
-    UnsignedInteger[] hkdf_label = get_tls_hkdf_label(iv_length, "iv", (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{0}, 8));
+    UnsignedInteger[] hkdf_label = get_tls_hkdf_label(iv_length, "quic iv", (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{0}, 8));
     return Util.get_prefix(hkdf_expand(secret, hkdf_label), iv_length);
   }
 

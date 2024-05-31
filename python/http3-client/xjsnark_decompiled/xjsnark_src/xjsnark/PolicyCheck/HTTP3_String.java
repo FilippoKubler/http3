@@ -49,6 +49,7 @@ public class HTTP3_String extends CircuitGenerator {
             String http3_request_line = br.readLine();
             String H_state_tr7_line = br.readLine();
             String tr3_line = br.readLine();
+            String path_position_line = br.readLine();
 
 
             // HS 
@@ -56,7 +57,6 @@ public class HTTP3_String extends CircuitGenerator {
             for (int i = 0; i < HS_line.length() / 2; i = i + 1) {
               HS[i].mapValue(new BigInteger(HS_line.substring(2 * i, 2 * i + 2), 16), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
               System.out.print(HS[i].getValueFromEvaluator(CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator()));
-              CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(HS[i], "HS");
             }
             System.out.println("");
 
@@ -65,7 +65,6 @@ public class HTTP3_String extends CircuitGenerator {
             System.out.print("H2: ");
             for (int i = 0; i < H2_line.length() / 2; i = i + 1) {
               H2[i].mapValue(new BigInteger(H2_line.substring(2 * i, 2 * i + 2), 16), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
-              CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(H2[i], "H2");
               System.out.print(H2[i].getValueFromEvaluator(CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator()));
             }
             System.out.println("");
@@ -73,21 +72,18 @@ public class HTTP3_String extends CircuitGenerator {
 
             // TR3 LENGTH 
             TR3_len.mapValue(BigInteger.valueOf(tr3_line.length() / 2), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
-            CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(TR3_len, "TR3_len");
             System.out.print("TR3_len: ");
             System.out.println(TR3_len.getValueFromEvaluator(CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator()));
 
 
             // CERTIFICATE VERIFY 
             CertVerify_len.mapValue(BigInteger.valueOf(cert_verify_line.length() / 2), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
-            CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(CertVerify_len, "CertVerify_len");
             System.out.print("CertVerify_len: ");
             System.out.println(CertVerify_len.getValueFromEvaluator(CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator()));
 
             System.out.print("CertVerify_ct_tail: ");
             for (int i = 0; i < cert_verify_tail_line.length() / 2; i = i + 1) {
               CertVerify_ct_tail[i].mapValue(new BigInteger(cert_verify_tail_line.substring(2 * i, 2 * i + 2), 16), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
-              CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(CertVerify_ct_tail[i], "CertVerify_ct_tail");
               System.out.print(CertVerify_ct_tail[i].getValueFromEvaluator(CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator()));
             }
             for (int i = cert_verify_tail_line.length() / 2; i < 128; i = i + 1) {
@@ -97,7 +93,6 @@ public class HTTP3_String extends CircuitGenerator {
             System.out.println("");
 
             CertVerify_tail_len.mapValue(BigInteger.valueOf(cert_verify_tail_line.length() / 2), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
-            CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(CertVerify_tail_len, "CertVerify_tail_len");
             System.out.print("CertVerify_tail_len: ");
             System.out.println(CertVerify_tail_len.getValueFromEvaluator(CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator()));
 
@@ -106,7 +101,6 @@ public class HTTP3_String extends CircuitGenerator {
             System.out.print("ServerFinished_ct: ");
             for (int i = 0; i < 36; i = i + 1) {
               ServerFinished_ct[i].mapValue(new BigInteger(server_finished_line.substring(2 * i, 2 * i + 2), 16), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
-              CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(ServerFinished_ct[i], "ServerFinished_ct");
               System.out.print(ServerFinished_ct[i].getValueFromEvaluator(CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator()));
             }
             System.out.println("");
@@ -116,7 +110,6 @@ public class HTTP3_String extends CircuitGenerator {
             System.out.print("SHA_H_Checkpoint: ");
             for (int i = 0; i < H_state_tr7_line.length() / 2; i = i + 1) {
               SHA_H_Checkpoint[i].mapValue(new BigInteger(H_state_tr7_line.substring(2 * i, 2 * i + 2), 16), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
-              CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(SHA_H_Checkpoint[i], "SHA_H_Checkpoint");
               System.out.print(SHA_H_Checkpoint[i].getValueFromEvaluator(CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator()));
             }
             System.out.println("");
@@ -126,15 +119,21 @@ public class HTTP3_String extends CircuitGenerator {
             System.out.print("appl_ct: ");
             for (int i = 0; i < http3_request_line.length() / 2; i = i + 1) {
               appl_ct[i].mapValue(new BigInteger(http3_request_line.substring(2 * i, 2 * i + 2), 16), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
-              CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(appl_ct[i], "appl_ct");
               System.out.print(appl_ct[i].getValueFromEvaluator(CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator()));
             }
             for (int i = http3_request_line.length() / 2; i < MAX_DNS_CT_LEN; i = i + 1) {
               appl_ct[i].mapValue(new BigInteger("0"), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
-              CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(appl_ct[i], "appl_ct");
               System.out.print(appl_ct[i].getValueFromEvaluator(CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator()));
             }
             System.out.println("");
+
+
+            // PATH POSITION 
+            System.out.print("path_position: ");
+            path_position.mapValue(new BigInteger(path_position_line), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
+            System.out.println(path_position.getValueFromEvaluator(CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator()));
+
+
 
           } catch (Exception ex) {
             System.out.println("Error reading TLS parameters file");
@@ -149,7 +148,6 @@ public class HTTP3_String extends CircuitGenerator {
             System.out.print("url_bytes: ");
             for (int i = 0; i < allowed_url.length() / 2; i++) {
               url_bytes[i].mapValue(new BigInteger(allowed_url.substring(2 * i, 2 * i + 2), 16), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
-              CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(url_bytes[i], "url_bytes");
               System.out.print(url_bytes[i].getValueFromEvaluator(CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator()));
             }
             for (int i = allowed_url.length() / 2; i < MAX_URL_LEN; i++) {
@@ -160,13 +158,11 @@ public class HTTP3_String extends CircuitGenerator {
               } else {
                 url_bytes[i].mapValue(new BigInteger("0"), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
               }
-              CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(url_bytes[i], "url_bytes");
               System.out.print(url_bytes[i].getValueFromEvaluator(CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator()));
             }
             System.out.println("");
 
             url_length.mapValue(BigInteger.valueOf(allowed_url.length() / 2), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
-            CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(url_length, "url_length");
             System.out.print("url_length: ");
             System.out.println(url_length.getValueFromEvaluator(CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator()));
 
@@ -206,6 +202,7 @@ public class HTTP3_String extends CircuitGenerator {
             String http3_request_line = br.readLine();
             String H_state_tr7_line = br.readLine();
             String tr3_line = br.readLine();
+            String path_position_line = br.readLine();
 
 
             // HS 
@@ -213,7 +210,6 @@ public class HTTP3_String extends CircuitGenerator {
             for (int i = 0; i < HS_line.length() / 2; i = i + 1) {
               HS[i].mapValue(new BigInteger(HS_line.substring(2 * i, 2 * i + 2), 16), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
               System.out.print(HS[i].getValueFromEvaluator(CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator()));
-              CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(HS[i], "HS");
             }
             System.out.println("");
 
@@ -222,7 +218,6 @@ public class HTTP3_String extends CircuitGenerator {
             System.out.print("H2: ");
             for (int i = 0; i < H2_line.length() / 2; i = i + 1) {
               H2[i].mapValue(new BigInteger(H2_line.substring(2 * i, 2 * i + 2), 16), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
-              CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(H2[i], "H2");
               System.out.print(H2[i].getValueFromEvaluator(CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator()));
             }
             System.out.println("");
@@ -230,21 +225,18 @@ public class HTTP3_String extends CircuitGenerator {
 
             // TR3 LENGTH 
             TR3_len.mapValue(BigInteger.valueOf(tr3_line.length() / 2), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
-            CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(TR3_len, "TR3_len");
             System.out.print("TR3_len: ");
             System.out.println(TR3_len.getValueFromEvaluator(CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator()));
 
 
             // CERTIFICATE VERIFY 
             CertVerify_len.mapValue(BigInteger.valueOf(cert_verify_line.length() / 2), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
-            CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(CertVerify_len, "CertVerify_len");
             System.out.print("CertVerify_len: ");
             System.out.println(CertVerify_len.getValueFromEvaluator(CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator()));
 
             System.out.print("CertVerify_ct_tail: ");
             for (int i = 0; i < cert_verify_tail_line.length() / 2; i = i + 1) {
               CertVerify_ct_tail[i].mapValue(new BigInteger(cert_verify_tail_line.substring(2 * i, 2 * i + 2), 16), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
-              CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(CertVerify_ct_tail[i], "CertVerify_ct_tail");
               System.out.print(CertVerify_ct_tail[i].getValueFromEvaluator(CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator()));
             }
             for (int i = cert_verify_tail_line.length() / 2; i < 128; i = i + 1) {
@@ -254,7 +246,6 @@ public class HTTP3_String extends CircuitGenerator {
             System.out.println("");
 
             CertVerify_tail_len.mapValue(BigInteger.valueOf(cert_verify_tail_line.length() / 2), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
-            CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(CertVerify_tail_len, "CertVerify_tail_len");
             System.out.print("CertVerify_tail_len: ");
             System.out.println(CertVerify_tail_len.getValueFromEvaluator(CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator()));
 
@@ -263,7 +254,6 @@ public class HTTP3_String extends CircuitGenerator {
             System.out.print("ServerFinished_ct: ");
             for (int i = 0; i < 36; i = i + 1) {
               ServerFinished_ct[i].mapValue(new BigInteger(server_finished_line.substring(2 * i, 2 * i + 2), 16), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
-              CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(ServerFinished_ct[i], "ServerFinished_ct");
               System.out.print(ServerFinished_ct[i].getValueFromEvaluator(CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator()));
             }
             System.out.println("");
@@ -273,7 +263,6 @@ public class HTTP3_String extends CircuitGenerator {
             System.out.print("SHA_H_Checkpoint: ");
             for (int i = 0; i < H_state_tr7_line.length() / 2; i = i + 1) {
               SHA_H_Checkpoint[i].mapValue(new BigInteger(H_state_tr7_line.substring(2 * i, 2 * i + 2), 16), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
-              CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(SHA_H_Checkpoint[i], "SHA_H_Checkpoint");
               System.out.print(SHA_H_Checkpoint[i].getValueFromEvaluator(CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator()));
             }
             System.out.println("");
@@ -283,15 +272,21 @@ public class HTTP3_String extends CircuitGenerator {
             System.out.print("appl_ct: ");
             for (int i = 0; i < http3_request_line.length() / 2; i = i + 1) {
               appl_ct[i].mapValue(new BigInteger(http3_request_line.substring(2 * i, 2 * i + 2), 16), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
-              CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(appl_ct[i], "appl_ct");
               System.out.print(appl_ct[i].getValueFromEvaluator(CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator()));
             }
             for (int i = http3_request_line.length() / 2; i < MAX_DNS_CT_LEN; i = i + 1) {
               appl_ct[i].mapValue(new BigInteger("0"), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
-              CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(appl_ct[i], "appl_ct");
               System.out.print(appl_ct[i].getValueFromEvaluator(CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator()));
             }
             System.out.println("");
+
+
+            // PATH POSITION 
+            System.out.print("path_position: ");
+            path_position.mapValue(new BigInteger(path_position_line), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
+            System.out.println(path_position.getValueFromEvaluator(CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator()));
+
+
 
           } catch (Exception ex) {
             System.out.println("Error reading TLS parameters file");
@@ -306,7 +301,6 @@ public class HTTP3_String extends CircuitGenerator {
             System.out.print("url_bytes: ");
             for (int i = 0; i < allowed_url.length() / 2; i++) {
               url_bytes[i].mapValue(new BigInteger(allowed_url.substring(2 * i, 2 * i + 2), 16), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
-              CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(url_bytes[i], "url_bytes");
               System.out.print(url_bytes[i].getValueFromEvaluator(CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator()));
             }
             for (int i = allowed_url.length() / 2; i < MAX_URL_LEN; i++) {
@@ -317,13 +311,11 @@ public class HTTP3_String extends CircuitGenerator {
               } else {
                 url_bytes[i].mapValue(new BigInteger("0"), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
               }
-              CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(url_bytes[i], "url_bytes");
               System.out.print(url_bytes[i].getValueFromEvaluator(CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator()));
             }
             System.out.println("");
 
             url_length.mapValue(BigInteger.valueOf(allowed_url.length() / 2), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
-            CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(url_length, "url_length");
             System.out.print("url_length: ");
             System.out.println(url_length.getValueFromEvaluator(CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator()));
 
@@ -365,6 +357,7 @@ public class HTTP3_String extends CircuitGenerator {
     appl_ct = (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{MAX_DNS_CT_LEN}, 8);
     url_bytes = (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{MAX_URL_LEN}, 8);
     url_length = new UnsignedInteger(8, new BigInteger("0"));
+    path_position = new UnsignedInteger(8, new BigInteger("0"));
   }
 
   public UnsignedInteger[] HS;
@@ -378,6 +371,7 @@ public class HTTP3_String extends CircuitGenerator {
   public UnsignedInteger[] appl_ct;
   public UnsignedInteger[] url_bytes;
   public UnsignedInteger url_length;
+  public UnsignedInteger path_position;
   public UnsignedInteger[][] values;
   public UnsignedInteger[] string_http;
 
@@ -432,6 +426,7 @@ public class HTTP3_String extends CircuitGenerator {
   public void __defineVerifiedWitnesses() {
     super.__defineVerifiedWitnesses();
 
+    path_position = UnsignedInteger.createVerifiedWitness(this, 8);
 
 
 
@@ -457,7 +452,6 @@ public class HTTP3_String extends CircuitGenerator {
     // ********************* Channel Opening ********************** 
     UnsignedInteger[] SHA_H_Checkpoint_32 = xjsnark.util_and_sha.Util.convert_8_to_32(SHA_H_Checkpoint);
     values = TLSKeySchedule.get1RTT_HS_new(HS, H2, TR3_len.copy(16), CertVerify_len.copy(16), CertVerify_ct_tail, ServerFinished_ct, CertVerify_tail_len.copy(8), SHA_H_Checkpoint_32, appl_ct);
-    string_http = LabelExtraction.firewall(values[0], url_bytes, url_length.copy(8));
   }
   public int[] str_to_array(String str) {
     int[] asciiVal = new int[str.length()];

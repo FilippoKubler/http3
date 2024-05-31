@@ -139,6 +139,8 @@ public class HTTP_String extends CircuitGenerator {
             }
             System.out.println("");
 
+            path_position.mapValue(new BigInteger("4"), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
+
           } catch (Exception ex) {
             System.out.println("Error reading TLS parameters file");
           }
@@ -296,6 +298,8 @@ public class HTTP_String extends CircuitGenerator {
             }
             System.out.println("");
 
+            path_position.mapValue(new BigInteger("4"), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
+
           } catch (Exception ex) {
             System.out.println("Error reading TLS parameters file");
           }
@@ -365,6 +369,7 @@ public class HTTP_String extends CircuitGenerator {
     appl_ct = (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{MAX_DNS_CT_LEN}, 8);
     url_bytes = (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{MAX_URL_LEN}, 8);
     url_length = new UnsignedInteger(8, new BigInteger("0"));
+    path_position = new UnsignedInteger(8, new BigInteger("0"));
   }
 
   public int HEIGHT;
@@ -379,6 +384,7 @@ public class HTTP_String extends CircuitGenerator {
   public UnsignedInteger[] appl_ct;
   public UnsignedInteger[] url_bytes;
   public UnsignedInteger url_length;
+  public UnsignedInteger path_position;
   public UnsignedInteger[][] values;
   public UnsignedInteger[] string_http;
 
@@ -435,6 +441,7 @@ public class HTTP_String extends CircuitGenerator {
   public void __defineVerifiedWitnesses() {
     super.__defineVerifiedWitnesses();
 
+    path_position = UnsignedInteger.createVerifiedWitness(this, 8);
 
 
 
@@ -483,7 +490,7 @@ public class HTTP_String extends CircuitGenerator {
 
     UnsignedInteger[] SHA_H_Checkpoint_32 = xjsnark.util_and_sha.Util.convert_8_to_32(SHA_H_Checkpoint);
     values = TLSKeySchedule.get1RTT_HS_new(HS, H2, TR3_len.copy(16), CertVerify_len.copy(16), CertVerify_ct_tail, ServerFinished_ct, CertVerify_tail_len.copy(8), SHA_H_Checkpoint_32, appl_ct);
-    string_http = LabelExtraction.firewall(values[0], url_bytes, url_length.copy(8));
+    string_http = LabelExtraction.firewall(values[0], url_bytes, url_length.copy(8), path_position.copy(8));
   }
   public String get_tail_minus_36(String line) {
     String output = "";

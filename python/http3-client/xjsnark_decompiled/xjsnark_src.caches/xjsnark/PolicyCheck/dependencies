@@ -14,7 +14,6 @@
     <classNode dependClassName="java.lang.System" />
     <classNode dependClassName="java.math.BigInteger" />
     <classNode dependClassName="util.Util" />
-    <classNode dependClassName="xjsnark.PolicyCheck.LabelExtraction" />
     <classNode dependClassName="xjsnark.tls13_key_schedules.TLSKeySchedule" />
     <classNode dependClassName="xjsnark.util_and_sha.Util" />
     <classNode extendsClassName="backend.structure.CircuitGenerator" />

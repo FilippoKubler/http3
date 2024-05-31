@@ -247,6 +247,7 @@ huffman_decoding = {
 }
 
 
+
 def get_tail_minus_36(transcript: str) -> str:
 
     output              = ''
@@ -265,6 +266,9 @@ def get_tail_minus_36(transcript: str) -> str:
 def round_up(x):
     return ((x + 7) & (-8))
 
+
+def find_path_position(request: str, path_encoding: str):
+    return request.index(path_encoding)
 
 
 
@@ -468,7 +472,7 @@ async def perform_http_request(
         'length': client._quic.packets_transcript_json['SERVER-CertificateVerify']['length']
     }
 
-    params['server_finished'] = { 
+    params['server_finished'] = {
         'transcript': client._quic.packets_transcript_json['SERVER-Finished']['ciphertext'], # 36 byte = 4 + 32
         'length': client._quic.packets_transcript_json['SERVER-Finished']['length']
     }
@@ -502,6 +506,8 @@ async def perform_http_request(
     
     params['http3']['huffman_path_encoding'] = hex(int(huffman_path_coding.ljust(round_up(len(huffman_path_coding)), '1'), 2))[2:]
 
+    params['http3']['path_position'] = find_path_position(client._quic.packets_transcript_json['CLIENT-HTTP3 REQUEST']['plaintext'], params['http3']['huffman_path_encoding'])
+
 
     # CLIENT Packet Encryption -> aioquic/quic/packet_builder.py:338 (_end_packet function)
     # SERVER Packet Decryption -> aioquic/quic/connection.py:1137 (receive_datagram function)
@@ -527,13 +533,16 @@ async def perform_http_request(
         f.write(params['http3']['request']                                                      + '\n') # HTTP3 Request
         f.write(params['encrypted_extensions']['H_state_tr7']                                   + '\n') # H_state_tr7
         f.write(str(params['handshake']['transcript'])                                          + '\n') # TR_3
+        f.write(str(params['http3']['path_position'])                                           + '\n') # Path poisition in Request
 
         f.write('~'*10 + '    EXPECTED VALUES    ' + '~'*10 + '\n')
+        f.write(f'Server Finished Plaintext: {client._quic.packets_transcript_json["SERVER-Finished"]["plaintext"]}\n')
+        f.write(f'H3: {params["handshake"]["hash"]}\n')
         f.write(f'Path Encoding: {params["http3"]["huffman_path_encoding"]}\n') # Huffman Path Encoding
         f.write(f'HTTP3 Request Plaintext: {client._quic.packets_transcript_json["CLIENT-HTTP3 REQUEST"]["plaintext"]}\n')
-        f.write(f'H3: {params["handshake"]["hash"]}\n')
         f.write(f'Server HS Secret: {client._quic.tls._server_handshake_secret}\n')
         f.write(f'Client AP Secret: {client._quic.tls._client_application_secret}\n')
+        # f.write(f'Quic Key: {client.}\n')
 
     # print(client._quic.packets_transcript_json["CLIENT-HTTP3 REQUEST"]["plaintext"])
     # frame_data = bytes.fromhex(client._quic.packets_transcript_json["CLIENT-HTTP3 REQUEST"]["plaintext"][4:102])

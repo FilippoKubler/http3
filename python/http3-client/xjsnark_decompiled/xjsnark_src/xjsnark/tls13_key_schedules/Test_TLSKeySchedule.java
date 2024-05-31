@@ -210,31 +210,31 @@ public class Test_TLSKeySchedule {
     // TODO: is it necessary to pad with zeroes? 
     for (int i = 0; i < 128; i++) {
       {
-        Bit bit_a0tb0xc_0 = UnsignedInteger.instantiateFrom(8, i).isLessThan(CertVerify_tail_len).copy();
-        boolean c_a0tb0xc_0 = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0tb0xc_0);
-        if (c_a0tb0xc_0) {
-          if (bit_a0tb0xc_0.getConstantValue()) {
+        Bit bit_a0tb0xc = UnsignedInteger.instantiateFrom(8, i).isLessThan(CertVerify_tail_len).copy();
+        boolean c_a0tb0xc = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0tb0xc);
+        if (c_a0tb0xc) {
+          if (bit_a0tb0xc.getConstantValue()) {
             Decrypted_Merged_tail[i].assign(CertVerify_tail[i], 8);
           } else {
             {
-              Bit bit_a0a0a0a2a0a54a57_0 = UnsignedInteger.instantiateFrom(8, i).subtract(CertVerify_tail_len).isLessThan(UnsignedInteger.instantiateFrom(8, 36)).copy();
-              boolean c_a0a0a0a2a0a54a57_0 = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0a0a0a2a0a54a57_0);
-              if (c_a0a0a0a2a0a54a57_0) {
-                if (bit_a0a0a0a2a0a54a57_0.getConstantValue()) {
+              Bit bit_a0a0a0a2a0a54a57 = UnsignedInteger.instantiateFrom(8, i).subtract(CertVerify_tail_len).isLessThan(UnsignedInteger.instantiateFrom(8, 36)).copy();
+              boolean c_a0a0a0a2a0a54a57 = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0a0a0a2a0a54a57);
+              if (c_a0a0a0a2a0a54a57) {
+                if (bit_a0a0a0a2a0a54a57.getConstantValue()) {
                   Decrypted_Merged_tail[i].assign(ServFinRam.read(UnsignedInteger.instantiateFrom(8, i).subtract(CertVerify_tail_len)), 8);
                 } else {
                   {
-                    Bit bit_a0a0a2a0a0a0a0c0a0tb0xc_0 = UnsignedInteger.instantiateFrom(8, i).isGreaterThan(CertVerify_tail_len.add(UnsignedInteger.instantiateFrom(8, 36))).copy();
-                    boolean c_a0a0a2a0a0a0a0c0a0tb0xc_0 = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0a0a2a0a0a0a0c0a0tb0xc_0);
-                    if (c_a0a0a2a0a0a0a0c0a0tb0xc_0) {
-                      if (bit_a0a0a2a0a0a0a0c0a0tb0xc_0.getConstantValue()) {
+                    Bit bit_a0a0a2a0a0a0a0c0a0tb0xc = UnsignedInteger.instantiateFrom(8, i).isGreaterThan(CertVerify_tail_len.add(UnsignedInteger.instantiateFrom(8, 36))).copy();
+                    boolean c_a0a0a2a0a0a0a0c0a0tb0xc = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0a0a2a0a0a0a0c0a0tb0xc);
+                    if (c_a0a0a2a0a0a0a0c0a0tb0xc) {
+                      if (bit_a0a0a2a0a0a0a0c0a0tb0xc.getConstantValue()) {
                         Decrypted_Merged_tail[i].assign(UnsignedInteger.instantiateFrom(8, 0), 8);
                       } else {
 
                       }
                     } else {
                       ConditionalScopeTracker.pushMain();
-                      ConditionalScopeTracker.push(bit_a0a0a2a0a0a0a0c0a0tb0xc_0);
+                      ConditionalScopeTracker.push(bit_a0a0a2a0a0a0a0c0a0tb0xc);
                       Decrypted_Merged_tail[i].assign(UnsignedInteger.instantiateFrom(8, 0), 8);
 
                       ConditionalScopeTracker.pop();
@@ -250,7 +250,7 @@ public class Test_TLSKeySchedule {
                 }
               } else {
                 ConditionalScopeTracker.pushMain();
-                ConditionalScopeTracker.push(bit_a0a0a0a2a0a54a57_0);
+                ConditionalScopeTracker.push(bit_a0a0a0a2a0a54a57);
                 Decrypted_Merged_tail[i].assign(ServFinRam.read(UnsignedInteger.instantiateFrom(8, i).subtract(CertVerify_tail_len)), 8);
 
                 ConditionalScopeTracker.pop();
@@ -258,17 +258,17 @@ public class Test_TLSKeySchedule {
                 ConditionalScopeTracker.push(new Bit(true));
 
                 {
-                  Bit bit_a0a0a0a0c0a0tb0xc_2 = UnsignedInteger.instantiateFrom(8, i).isGreaterThan(CertVerify_tail_len.add(UnsignedInteger.instantiateFrom(8, 36))).copy();
-                  boolean c_a0a0a0a0c0a0tb0xc_2 = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0a0a0a0c0a0tb0xc_2);
-                  if (c_a0a0a0a0c0a0tb0xc_2) {
-                    if (bit_a0a0a0a0c0a0tb0xc_2.getConstantValue()) {
+                  Bit bit_a0a0a0a0c0a0tb0xc_0 = UnsignedInteger.instantiateFrom(8, i).isGreaterThan(CertVerify_tail_len.add(UnsignedInteger.instantiateFrom(8, 36))).copy();
+                  boolean c_a0a0a0a0c0a0tb0xc_0 = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0a0a0a0c0a0tb0xc_0);
+                  if (c_a0a0a0a0c0a0tb0xc_0) {
+                    if (bit_a0a0a0a0c0a0tb0xc_0.getConstantValue()) {
                       Decrypted_Merged_tail[i].assign(UnsignedInteger.instantiateFrom(8, 0), 8);
                     } else {
 
                     }
                   } else {
                     ConditionalScopeTracker.pushMain();
-                    ConditionalScopeTracker.push(bit_a0a0a0a0c0a0tb0xc_2);
+                    ConditionalScopeTracker.push(bit_a0a0a0a0c0a0tb0xc_0);
                     Decrypted_Merged_tail[i].assign(UnsignedInteger.instantiateFrom(8, 0), 8);
 
                     ConditionalScopeTracker.pop();
@@ -289,7 +289,7 @@ public class Test_TLSKeySchedule {
           }
         } else {
           ConditionalScopeTracker.pushMain();
-          ConditionalScopeTracker.push(bit_a0tb0xc_0);
+          ConditionalScopeTracker.push(bit_a0tb0xc);
           Decrypted_Merged_tail[i].assign(CertVerify_tail[i], 8);
 
           ConditionalScopeTracker.pop();
@@ -297,24 +297,24 @@ public class Test_TLSKeySchedule {
           ConditionalScopeTracker.push(new Bit(true));
 
           {
-            Bit bit_a0a0a54a57_2 = UnsignedInteger.instantiateFrom(8, i).subtract(CertVerify_tail_len).isLessThan(UnsignedInteger.instantiateFrom(8, 36)).copy();
-            boolean c_a0a0a54a57_2 = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0a0a54a57_2);
-            if (c_a0a0a54a57_2) {
-              if (bit_a0a0a54a57_2.getConstantValue()) {
+            Bit bit_a0a0a54a57_0 = UnsignedInteger.instantiateFrom(8, i).subtract(CertVerify_tail_len).isLessThan(UnsignedInteger.instantiateFrom(8, 36)).copy();
+            boolean c_a0a0a54a57_0 = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0a0a54a57_0);
+            if (c_a0a0a54a57_0) {
+              if (bit_a0a0a54a57_0.getConstantValue()) {
                 Decrypted_Merged_tail[i].assign(ServFinRam.read(UnsignedInteger.instantiateFrom(8, i).subtract(CertVerify_tail_len)), 8);
               } else {
                 {
-                  Bit bit_a0a0a2a0a8a0c0a0tb0xc_0 = UnsignedInteger.instantiateFrom(8, i).isGreaterThan(CertVerify_tail_len.add(UnsignedInteger.instantiateFrom(8, 36))).copy();
-                  boolean c_a0a0a2a0a8a0c0a0tb0xc_0 = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0a0a2a0a8a0c0a0tb0xc_0);
-                  if (c_a0a0a2a0a8a0c0a0tb0xc_0) {
-                    if (bit_a0a0a2a0a8a0c0a0tb0xc_0.getConstantValue()) {
+                  Bit bit_a0a0a2a0a8a0c0a0tb0xc = UnsignedInteger.instantiateFrom(8, i).isGreaterThan(CertVerify_tail_len.add(UnsignedInteger.instantiateFrom(8, 36))).copy();
+                  boolean c_a0a0a2a0a8a0c0a0tb0xc = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0a0a2a0a8a0c0a0tb0xc);
+                  if (c_a0a0a2a0a8a0c0a0tb0xc) {
+                    if (bit_a0a0a2a0a8a0c0a0tb0xc.getConstantValue()) {
                       Decrypted_Merged_tail[i].assign(UnsignedInteger.instantiateFrom(8, 0), 8);
                     } else {
 
                     }
                   } else {
                     ConditionalScopeTracker.pushMain();
-                    ConditionalScopeTracker.push(bit_a0a0a2a0a8a0c0a0tb0xc_0);
+                    ConditionalScopeTracker.push(bit_a0a0a2a0a8a0c0a0tb0xc);
                     Decrypted_Merged_tail[i].assign(UnsignedInteger.instantiateFrom(8, 0), 8);
 
                     ConditionalScopeTracker.pop();
@@ -330,7 +330,7 @@ public class Test_TLSKeySchedule {
               }
             } else {
               ConditionalScopeTracker.pushMain();
-              ConditionalScopeTracker.push(bit_a0a0a54a57_2);
+              ConditionalScopeTracker.push(bit_a0a0a54a57_0);
               Decrypted_Merged_tail[i].assign(ServFinRam.read(UnsignedInteger.instantiateFrom(8, i).subtract(CertVerify_tail_len)), 8);
 
               ConditionalScopeTracker.pop();
@@ -338,17 +338,17 @@ public class Test_TLSKeySchedule {
               ConditionalScopeTracker.push(new Bit(true));
 
               {
-                Bit bit_a0a0a0tb0xc_6 = UnsignedInteger.instantiateFrom(8, i).isGreaterThan(CertVerify_tail_len.add(UnsignedInteger.instantiateFrom(8, 36))).copy();
-                boolean c_a0a0a0tb0xc_6 = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0a0a0tb0xc_6);
-                if (c_a0a0a0tb0xc_6) {
-                  if (bit_a0a0a0tb0xc_6.getConstantValue()) {
+                Bit bit_a0a0a0tb0xc_2 = UnsignedInteger.instantiateFrom(8, i).isGreaterThan(CertVerify_tail_len.add(UnsignedInteger.instantiateFrom(8, 36))).copy();
+                boolean c_a0a0a0tb0xc_2 = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0a0a0tb0xc_2);
+                if (c_a0a0a0tb0xc_2) {
+                  if (bit_a0a0a0tb0xc_2.getConstantValue()) {
                     Decrypted_Merged_tail[i].assign(UnsignedInteger.instantiateFrom(8, 0), 8);
                   } else {
 
                   }
                 } else {
                   ConditionalScopeTracker.pushMain();
-                  ConditionalScopeTracker.push(bit_a0a0a0tb0xc_6);
+                  ConditionalScopeTracker.push(bit_a0a0a0tb0xc_2);
                   Decrypted_Merged_tail[i].assign(UnsignedInteger.instantiateFrom(8, 0), 8);
 
                   ConditionalScopeTracker.pop();
