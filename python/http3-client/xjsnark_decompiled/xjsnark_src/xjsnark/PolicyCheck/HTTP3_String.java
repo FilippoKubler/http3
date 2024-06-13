@@ -50,6 +50,7 @@ public class HTTP3_String extends CircuitGenerator {
             String H_state_tr7_line = br.readLine();
             String tr3_line = br.readLine();
             String path_position_line = br.readLine();
+            String cert_verify_tail_head_length_line = br.readLine();
 
 
             // HS 
@@ -87,8 +88,11 @@ public class HTTP3_String extends CircuitGenerator {
 
 
             // SERVER FINISHED 
-            for (int i = 0; i < 36; i = i + 1) {
+            for (int i = 0; i < server_finished_line.length() / 2; i = i + 1) {
               ServerFinished_ct[i].mapValue(new BigInteger(server_finished_line.substring(2 * i, 2 * i + 2), 16), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
+            }
+            for (int i = server_finished_line.length() / 2; i < 128; i = i + 1) {
+              ServerFinished_ct[i].mapValue(new BigInteger("0"), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
             }
 
 
@@ -111,7 +115,8 @@ public class HTTP3_String extends CircuitGenerator {
             path_position.mapValue(new BigInteger(path_position_line), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
 
 
-            // FINISHED IV 
+            // CERTIFICATE VERIFY TAIL HEAD LENGTH 
+            CertVerify_tail_head_len.mapValue(new BigInteger(cert_verify_tail_head_length_line), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
 
           } catch (Exception ex) {
             System.out.println("Error reading TLS parameters file");
@@ -173,6 +178,7 @@ public class HTTP3_String extends CircuitGenerator {
             String H_state_tr7_line = br.readLine();
             String tr3_line = br.readLine();
             String path_position_line = br.readLine();
+            String cert_verify_tail_head_length_line = br.readLine();
 
 
             // HS 
@@ -210,8 +216,11 @@ public class HTTP3_String extends CircuitGenerator {
 
 
             // SERVER FINISHED 
-            for (int i = 0; i < 36; i = i + 1) {
+            for (int i = 0; i < server_finished_line.length() / 2; i = i + 1) {
               ServerFinished_ct[i].mapValue(new BigInteger(server_finished_line.substring(2 * i, 2 * i + 2), 16), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
+            }
+            for (int i = server_finished_line.length() / 2; i < 128; i = i + 1) {
+              ServerFinished_ct[i].mapValue(new BigInteger("0"), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
             }
 
 
@@ -234,7 +243,8 @@ public class HTTP3_String extends CircuitGenerator {
             path_position.mapValue(new BigInteger(path_position_line), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
 
 
-            // FINISHED IV 
+            // CERTIFICATE VERIFY TAIL HEAD LENGTH 
+            CertVerify_tail_head_len.mapValue(new BigInteger(cert_verify_tail_head_length_line), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
 
           } catch (Exception ex) {
             System.out.println("Error reading TLS parameters file");
@@ -292,9 +302,10 @@ public class HTTP3_String extends CircuitGenerator {
     TR3_len = new UnsignedInteger(16, new BigInteger("0"));
     CertVerify_len = new UnsignedInteger(16, new BigInteger("0"));
     CertVerify_tail_len = new UnsignedInteger(8, new BigInteger("0"));
+    CertVerify_tail_head_len = new UnsignedInteger(8, new BigInteger("0"));
     CertVerify_ct_tail = (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{128}, 8);
     CertVerify_ct = (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{264}, 8);
-    ServerFinished_ct = (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{36}, 8);
+    ServerFinished_ct = (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{128}, 8);
     appl_ct = (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{MAX_DNS_CT_LEN}, 8);
     url_bytes = (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{MAX_URL_LEN}, 8);
     url_length = new UnsignedInteger(8, new BigInteger("0"));
@@ -307,7 +318,7 @@ public class HTTP3_String extends CircuitGenerator {
   public UnsignedInteger TR3_len;
   public UnsignedInteger CertVerify_len;
   public UnsignedInteger CertVerify_tail_len;
-  public UnsignedInteger[] Finished_IV;
+  public UnsignedInteger CertVerify_tail_head_len;
   public UnsignedInteger[] CertVerify_ct_tail;
   public UnsignedInteger[] CertVerify_ct;
   public UnsignedInteger[] ServerFinished_ct;
@@ -371,6 +382,7 @@ public class HTTP3_String extends CircuitGenerator {
     super.__defineVerifiedWitnesses();
 
     path_position = UnsignedInteger.createVerifiedWitness(this, 8);
+    CertVerify_tail_head_len = UnsignedInteger.createVerifiedWitness(this, 8);
 
 
 
@@ -395,7 +407,8 @@ public class HTTP3_String extends CircuitGenerator {
   public void outsource() {
     // ********************* Channel Opening ********************** 
     UnsignedInteger[] SHA_H_Checkpoint_32 = xjsnark.util_and_sha.Util.convert_8_to_32(SHA_H_Checkpoint);
-    values = TLSKeySchedule.quic_get1RTT_HS_new(HS, H2, TR3_len.copy(16), CertVerify_len.copy(16), CertVerify_ct_tail, ServerFinished_ct, CertVerify_tail_len.copy(8), SHA_H_Checkpoint_32, appl_ct, CertVerify_ct);
+    values = TLSKeySchedule.quic_get1RTT_HS_new(HS, H2, TR3_len.copy(16), CertVerify_len.copy(16), CertVerify_ct_tail, ServerFinished_ct, CertVerify_tail_len.copy(8), SHA_H_Checkpoint_32, appl_ct, CertVerify_ct, CertVerify_tail_head_len.copy(8));
+    string_http = LabelExtraction.firewall(values[0], url_bytes, url_length.copy(8), path_position.copy(8));
   }
   public int[] str_to_array(String str) {
     int[] asciiVal = new int[str.length()];

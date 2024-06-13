@@ -498,6 +498,8 @@ async def perform_http_request(
     handshake_tail = get_tail_minus_36(params['handshake']['transcript'])
     params['certificate_verify']['tail'] = handshake_tail[0 : int(len(handshake_tail) - params['server_finished']['length']*2)] # 28 byte per completare il blocco con i primi 4 bytes del Server Finished (sha256)
     params['certificate_verify']['tail_length'] = int( len(params['certificate_verify']['tail']) / 2 )
+    params['certificate_verify']['head'] = str(client._quic.packets_transcript_json['SERVER-CertificateVerify']['CRYPTO-Frame']).split(params['certificate_verify']['tail'])[0] # Compute the head before the tail
+    params['certificate_verify']['head_length'] = int( len(params['certificate_verify']['head']) / 2 )
 
     params['http3'] = {}
     params['http3']['request'] = {
@@ -546,6 +548,7 @@ async def perform_http_request(
         f.write(params['certificate_verify']['H_state_tr7']                                     + '\n') # H_state_tr7
         f.write(str(params['handshake']['transcript'])                                          + '\n') # TR_3
         f.write(str(params['http3']['request']['path_position'])                                + '\n') # Path poisition in Request
+        f.write(str(params['certificate_verify']['head_length'])                                + '\n') # Certificate Verify Tail Head Length
 
         f.write('~'*10 + '    EXPECTED VALUES    ' + '~'*10 + '\n')
         f.write(f'Certificate Verify Length: {params["certificate_verify"]["length"]}\n')
