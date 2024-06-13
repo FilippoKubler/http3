@@ -55,11 +55,11 @@ public class Test_TLSKeySchedule {
 
     UnsignedInteger[] ES = HKDF.hkdf_extract(Util.new_zero_array(32), PSK);
 
-    UnsignedInteger[] dES = HKDF.hkdf_expand_derive_secret(ES, "derived", SHA2.hash_of_empty());
+    UnsignedInteger[] dES = HKDF.quic_hkdf_expand_derive_secret(ES, "derived", SHA2.hash_of_empty());
 
-    UnsignedInteger[] BK = HKDF.hkdf_expand_derive_secret(ES, "res binder", SHA2.hash_of_empty());
+    UnsignedInteger[] BK = HKDF.quic_hkdf_expand_derive_secret(ES, "res binder", SHA2.hash_of_empty());
 
-    UnsignedInteger[] fk_B = HKDF.hkdf_expand_derive_secret(BK, "finished", (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{0}, 8));
+    UnsignedInteger[] fk_B = HKDF.quic_hkdf_expand_derive_secret(BK, "finished", (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{0}, 8));
 
     // This is the binder derived by the purported PSK that was given as a witness to the circuit 
     UnsignedInteger[] derived_binder = HKDF.hmac(fk_B, H_5);
@@ -67,7 +67,7 @@ public class Test_TLSKeySchedule {
     // Verify that the derived binder is the same as the one from the transcript 
     Util.combine_8_into_256(REAL_BINDER).forceEqual(Util.combine_8_into_256(derived_binder));
 
-    UnsignedInteger[] ETS = HKDF.hkdf_expand_derive_secret(ES, "c e traffic", H_1);
+    UnsignedInteger[] ETS = HKDF.quic_hkdf_expand_derive_secret(ES, "c e traffic", H_1);
 
     UnsignedInteger[] tk_early = HKDF.hkdf_expand_derive_tk(ETS, 16);
     UnsignedInteger[] iv_early = HKDF.hkdf_expand_derive_iv(ETS, 12);
@@ -94,7 +94,7 @@ public class Test_TLSKeySchedule {
   public static UnsignedInteger[][] get1RTT(UnsignedInteger DHE_share, FieldElement Ax, FieldElement Ay, FieldElement Bx, FieldElement By, UnsignedInteger[] H2, UnsignedInteger[] CH_SH, UnsignedInteger CH_SH_len, UnsignedInteger[] ServExt_ct, UnsignedInteger ServExt_len, UnsignedInteger[] ServExt_tail_ct, UnsignedInteger[] appl_ct) {
 
     UnsignedInteger[] ES = HKDF.hkdf_extract(Util.new_zero_array(32), Util.new_zero_array(32));
-    UnsignedInteger[] dES = HKDF.hkdf_expand_derive_secret(ES, "derived", SHA2.hash_of_empty());
+    UnsignedInteger[] dES = HKDF.quic_hkdf_expand_derive_secret(ES, "derived", SHA2.hash_of_empty());
 
     // This function's goals: 
     // (1) Verify that G^sk = A where G is the generator of secp256 
@@ -103,13 +103,13 @@ public class Test_TLSKeySchedule {
 
     UnsignedInteger[] HS = HKDF.hkdf_extract(dES, DHE);
 
-    UnsignedInteger[] SHTS = HKDF.hkdf_expand_derive_secret(HS, "s hs traffic", H2);
+    UnsignedInteger[] SHTS = HKDF.quic_hkdf_expand_derive_secret(HS, "s hs traffic", H2);
 
     // traffic key and iv for "server handshake" messages 
     UnsignedInteger[] tk_shs = HKDF.hkdf_expand_derive_tk(SHTS, 16);
     UnsignedInteger[] iv_shs = HKDF.hkdf_expand_derive_iv(SHTS, 12);
 
-    UnsignedInteger[] dHS = HKDF.hkdf_expand_derive_secret(HS, "derived", SHA2.hash_of_empty());
+    UnsignedInteger[] dHS = HKDF.quic_hkdf_expand_derive_secret(HS, "derived", SHA2.hash_of_empty());
 
     UnsignedInteger[] MS = HKDF.hkdf_extract(dHS, Util.new_zero_array(32));
 
@@ -131,7 +131,7 @@ public class Test_TLSKeySchedule {
     // of length CH_SH_len + ServExt_len 
     UnsignedInteger[] H3 = SHA2.sha2_of_prefix(TR3, CH_SH_len.add(ServExt_len).copy(16), Serv_Ext_tail);
 
-    UnsignedInteger[] CATS = HKDF.hkdf_expand_derive_secret(MS, "c ap traffic", H3);
+    UnsignedInteger[] CATS = HKDF.quic_hkdf_expand_derive_secret(MS, "c ap traffic", H3);
 
     UnsignedInteger[] tk_capp = HKDF.hkdf_expand_derive_tk(CATS, 16);
     UnsignedInteger[] iv_capp = HKDF.hkdf_expand_derive_iv(CATS, 12);
@@ -164,7 +164,7 @@ public class Test_TLSKeySchedule {
   // SHA_H_Checkpoint - the H-state of SHA up to the last whole block of TR7
   public static UnsignedInteger[][] get1RTT_HS_new(UnsignedInteger[] HS, UnsignedInteger[] H2, UnsignedInteger TR3_len, UnsignedInteger CertVerify_len, UnsignedInteger[] CertVerify_ct_tail, UnsignedInteger[] ServerFinished_ct, UnsignedInteger CertVerify_tail_len, UnsignedInteger[] SHA_H_Checkpoint, UnsignedInteger[] appl_ct) {
 
-    UnsignedInteger[] SHTS = HKDF.hkdf_expand_derive_secret(HS, "s hs traffic", H2);
+    UnsignedInteger[] SHTS = HKDF.quic_hkdf_expand_derive_secret(HS, "s hs traffic", H2);
     // traffic key and iv for "server handshake" messages 
     UnsignedInteger[] tk_shs = HKDF.hkdf_expand_derive_tk(SHTS, 16);
     UnsignedInteger[] iv_shs = HKDF.hkdf_expand_derive_iv(SHTS, 12);
@@ -378,7 +378,7 @@ public class Test_TLSKeySchedule {
     UnsignedInteger[] H_7 = H7_H3[0];
     UnsignedInteger[] H_3 = H7_H3[1];
     // Derive the SF value from transcript hash H7 up to Certificate Verify 
-    UnsignedInteger[] fk_S = HKDF.hkdf_expand_derive_secret(SHTS, "finished", (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{0}, 8));
+    UnsignedInteger[] fk_S = HKDF.quic_hkdf_expand_derive_secret(SHTS, "finished", (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{0}, 8));
     UnsignedInteger[] SF_calculated = HKDF.hmac(fk_S, H_7);
 
     UnsignedInteger[] SF_transcript = (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{32}, 8);
@@ -390,11 +390,11 @@ public class Test_TLSKeySchedule {
     // Verify that the two SF values are identical 
     Util.combine_8_into_256(SF_calculated).forceEqual(Util.combine_8_into_256(SF_transcript));
 
-    UnsignedInteger[] dHS = HKDF.hkdf_expand_derive_secret(HS, "derived", SHA2.hash_of_empty());
+    UnsignedInteger[] dHS = HKDF.quic_hkdf_expand_derive_secret(HS, "derived", SHA2.hash_of_empty());
 
     UnsignedInteger[] MS = HKDF.hkdf_extract(dHS, Util.new_zero_array(32));
 
-    UnsignedInteger[] CATS = HKDF.hkdf_expand_derive_secret(MS, "c ap traffic", H_3);
+    UnsignedInteger[] CATS = HKDF.quic_hkdf_expand_derive_secret(MS, "c ap traffic", H_3);
 
     // client application traffic key, iv 
     UnsignedInteger[] tk_capp = HKDF.hkdf_expand_derive_tk(CATS, 16);

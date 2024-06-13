@@ -438,17 +438,19 @@ async def perform_http_request(
 
     # Plaintext
     params['client_hello'] = { 
-        'transcript': client._quic.packets_transcript_json['CLIENT-ClientHello']['plaintext'],
+        'plaintext': client._quic.packets_transcript_json['CLIENT-ClientHello']['plaintext'],
+        'ciphertext': client._quic.packets_transcript_json['CLIENT-ClientHello']['ciphertext'],
         'length': client._quic.packets_transcript_json['CLIENT-ClientHello']['length']
     }
 
     params['server_hello'] = { 
-        'transcript': client._quic.packets_transcript_json['SERVER-ServerHello']['plaintext'],
+        'plaintext': client._quic.packets_transcript_json['SERVER-ServerHello']['plaintext'],
+        'ciphertext': client._quic.packets_transcript_json['SERVER-ServerHello']['ciphertext'],
         'length': client._quic.packets_transcript_json['SERVER-ServerHello']['length']
     }
 
     params['client_server_hello'] = { 
-        'transcript': params['client_hello']['transcript'] + params['server_hello']['transcript'], # ch_sh = pt2_line
+        'transcript': params['client_hello']['plaintext'] + params['server_hello']['plaintext'], # ch_sh = pt2_line
         'length': params['client_hello']['length'] + params['server_hello']['length'],
     }
     params['client_server_hello']['hash'] = hashlib.sha256(bytes.fromhex(params['client_server_hello']['transcript'])).digest().hex() # H2 
@@ -456,29 +458,33 @@ async def perform_http_request(
 
     # Ciphertext
 
-    params['encrypted_extensions'] = { 
-        'transcript': client._quic.packets_transcript_json['SERVER-EncryptedExtensions']['ciphertext'],
-        'length': client._quic.packets_transcript_json['SERVER-EncryptedExtensions']['length'],
-        'H_state_tr7': sha2_compressions.get_H_state(params['client_server_hello']['transcript'] + client._quic.packets_transcript_json['SERVER-EncryptedExtensions']['plaintext']) # H_state_tr7 - the H-state of SHA up to the last whole block of TR7
+    params['encrypted_extensions'] = {
+        'plaintext': client._quic.packets_transcript_json['SERVER-EncryptedExtensions']['plaintext'],
+        'ciphertext': client._quic.packets_transcript_json['SERVER-EncryptedExtensions']['ciphertext'],
+        'length': client._quic.packets_transcript_json['SERVER-EncryptedExtensions']['length']
     }
 
     params['certificate'] = { 
-        'transcript': client._quic.packets_transcript_json['SERVER-Certificate']['ciphertext'],
+        'plaintext': client._quic.packets_transcript_json['SERVER-Certificate']['plaintext'],
+        'ciphertext': client._quic.packets_transcript_json['SERVER-Certificate']['ciphertext'],
         'length': client._quic.packets_transcript_json['SERVER-Certificate']['length']
     }
 
     params['certificate_verify'] = { 
-        'transcript': client._quic.packets_transcript_json['SERVER-CertificateVerify']['ciphertext'],
-        'length': client._quic.packets_transcript_json['SERVER-CertificateVerify']['length']
+        'plaintext': client._quic.packets_transcript_json['SERVER-CertificateVerify']['plaintext'],
+        'ciphertext': client._quic.packets_transcript_json['SERVER-CertificateVerify']['ciphertext'],
+        'length': client._quic.packets_transcript_json['SERVER-CertificateVerify']['length'],
+        'H_state_tr7': sha2_compressions.get_H_state(params['client_server_hello']['transcript'] + params['encrypted_extensions']['plaintext'] + params['certificate']['plaintext'] + client._quic.packets_transcript_json['SERVER-CertificateVerify']['plaintext']) # H_state_tr7 - the H-state of SHA up to the last whole block of TR7
     }
 
     params['server_finished'] = {
-        'transcript': client._quic.packets_transcript_json['SERVER-Finished']['ciphertext'], # 36 byte = 4 + 32
+        'plaintext': client._quic.packets_transcript_json['SERVER-Finished']['plaintext'],
+        'ciphertext': client._quic.packets_transcript_json['SERVER-Finished']['ciphertext'], # 36 byte = 4 + 32
         'length': client._quic.packets_transcript_json['SERVER-Finished']['length']
     }
 
     params['extensions_certificate_certificatevrfy_serverfinished'] = { 
-        'transcript': params['encrypted_extensions']['transcript'] + params['certificate']['transcript'] + params['certificate_verify']['transcript'] + params['server_finished']['transcript'], # ct3_line
+        'transcript': params['encrypted_extensions']['ciphertext'] + params['certificate']['ciphertext'] + params['certificate_verify']['ciphertext'] + params['server_finished']['ciphertext'], # ct3_line
         'length': params['encrypted_extensions']['length'] + params['certificate']['length'] + params['certificate_verify']['length'] + params['server_finished']['length']
     }
 
@@ -493,10 +499,16 @@ async def perform_http_request(
     params['certificate_verify']['tail'] = handshake_tail[0 : int(len(handshake_tail) - params['server_finished']['length']*2)] # 28 byte per completare il blocco con i primi 4 bytes del Server Finished (sha256)
     params['certificate_verify']['tail_length'] = int( len(params['certificate_verify']['tail']) / 2 )
 
-    params['http3'] = {
-        'request': client._quic.packets_transcript_json['CLIENT-HTTP3 REQUEST']['ciphertext'],
-        'url_bytes': '', # list of allowed urls
-        'url_length': 0 # len(url_bytes)
+    params['http3'] = {}
+    params['http3']['request'] = {
+        'plaintext': client._quic.packets_transcript_json['CLIENT-HTTP3 REQUEST']['plaintext'],
+        'ciphertext': client._quic.packets_transcript_json['CLIENT-HTTP3 REQUEST']['ciphertext'],
+        'length': client._quic.packets_transcript_json['CLIENT-HTTP3 REQUEST']['length'],        
+    }
+    params['http3']['response'] = {
+        'plaintext': client._quic.packets_transcript_json['SERVER-HTTP3 RESPONSE']['plaintext'],
+        'ciphertext': client._quic.packets_transcript_json['SERVER-HTTP3 RESPONSE']['ciphertext'],
+        'length': client._quic.packets_transcript_json['SERVER-HTTP3 RESPONSE']['length'],        
     }
 
     path = urllib.parse.urlparse(url).path
@@ -504,9 +516,9 @@ async def perform_http_request(
     for char in path:
         huffman_path_coding += huffman_coding[char]
     
-    params['http3']['huffman_path_encoding'] = hex(int(huffman_path_coding.ljust(round_up(len(huffman_path_coding)), '1'), 2))[2:]
+    params['http3']['request']['huffman_path_encoding'] = hex(int(huffman_path_coding.ljust(round_up(len(huffman_path_coding)), '1'), 2))[2:]
 
-    params['http3']['path_position'] = find_path_position(client._quic.packets_transcript_json['CLIENT-HTTP3 REQUEST']['plaintext'], params['http3']['huffman_path_encoding'])
+    params['http3']['request']['path_position'] = find_path_position(params['http3']['request']['plaintext'], params['http3']['request']['huffman_path_encoding'])
 
 
     # CLIENT Packet Encryption -> aioquic/quic/packet_builder.py:338 (_end_packet function)
@@ -526,23 +538,25 @@ async def perform_http_request(
         f.write(params['handshake']['secret']                                                   + '\n') # HS
         f.write(params['client_server_hello']['hash']                                           + '\n') # H_2
         f.write(params['client_server_hello']['transcript']                                     + '\n') # PT_2
-        f.write(str(params['certificate_verify']['transcript'])                                 + '\n') # Certificate Verify
+        f.write(str(params['certificate_verify']['ciphertext'])                                 + '\n') # Certificate Verify
         f.write(params['certificate_verify']['tail']                                            + '\n') # Certificate Verify Tail
-        f.write(params['server_finished']['transcript']                                         + '\n') # Server Finished
+        f.write(params['server_finished']['ciphertext']                                         + '\n') # Server Finished
         f.write(params['extensions_certificate_certificatevrfy_serverfinished']['transcript']   + '\n') # CT_3
-        f.write(params['http3']['request']                                                      + '\n') # HTTP3 Request
-        f.write(params['encrypted_extensions']['H_state_tr7']                                   + '\n') # H_state_tr7
+        f.write(params['http3']['request']['ciphertext']                                        + '\n') # HTTP3 Request
+        f.write(params['certificate_verify']['H_state_tr7']                                     + '\n') # H_state_tr7
         f.write(str(params['handshake']['transcript'])                                          + '\n') # TR_3
-        f.write(str(params['http3']['path_position'])                                           + '\n') # Path poisition in Request
+        f.write(str(params['http3']['request']['path_position'])                                + '\n') # Path poisition in Request
 
         f.write('~'*10 + '    EXPECTED VALUES    ' + '~'*10 + '\n')
-        f.write(f'Server Finished Plaintext: {client._quic.packets_transcript_json["SERVER-Finished"]["plaintext"]}\n')
+        f.write(f'Certificate Verify Length: {params["certificate_verify"]["length"]}\n')
+        f.write(f'Certificate Verify Head Length: {params["certificate_verify"]["length"] - params["certificate_verify"]["tail_length"]}\n')
+        f.write(f'Certificate Verify Tail Length: {params["certificate_verify"]["tail_length"]}\n')
+        f.write(f'Server Finished Plaintext: {params["server_finished"]["plaintext"]}\n')
         f.write(f'H3: {params["handshake"]["hash"]}\n')
-        f.write(f'Path Encoding: {params["http3"]["huffman_path_encoding"]}\n') # Huffman Path Encoding
-        f.write(f'HTTP3 Request Plaintext: {client._quic.packets_transcript_json["CLIENT-HTTP3 REQUEST"]["plaintext"]}\n')
+        f.write(f'Path Encoding: {params["http3"]["request"]["huffman_path_encoding"]}\n') # Huffman Path Encoding
+        f.write(f'HTTP3 Request Plaintext: {params["http3"]["request"]["plaintext"]}\n')
         f.write(f'Server HS Secret: {client._quic.tls._server_handshake_secret}\n')
         f.write(f'Client AP Secret: {client._quic.tls._client_application_secret}\n')
-        # f.write(f'Quic Key: {client.}\n')
 
     # print(client._quic.packets_transcript_json["CLIENT-HTTP3 REQUEST"]["plaintext"])
     # frame_data = bytes.fromhex(client._quic.packets_transcript_json["CLIENT-HTTP3 REQUEST"]["plaintext"][4:102])
@@ -557,8 +571,9 @@ async def perform_http_request(
     # print('Frame Data:', frame_data, frame_data.hex())
 
 
-    # filename = 'files/'
-    # subprocess.run(('java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.HTTP_String run files/'+filename+" "+allowed + ' ' + tls_conn._clientRandom.hex() + ' ' + str(packetNumber)).split())
+    subprocess.run(('java -cp ./xjsnark_decompiled/backend_bin_mod/:./xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.HTTP3_String run params.txt ' + str(params['http3']['request']['huffman_path_encoding']) + ' pippo 1').split())
+
+    # java -cp ./xjsnark_decompiled/backend_bin_mod/:./xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.HTTP3_String run files/transcript_http3_test.txt 625b6a224c7a9894d35054ff pippo 1
 
     logger.info(
         "Response received for %s %s : %d bytes in %.1f s (%.3f Mbps)"

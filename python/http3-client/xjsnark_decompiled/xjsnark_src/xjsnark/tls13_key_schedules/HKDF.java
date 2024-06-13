@@ -93,13 +93,13 @@ public class HKDF {
 
   public static UnsignedInteger[] hkdf_expand_derive_tk(UnsignedInteger[] secret, int key_length) {
     // For AES GCM 128, the key length is 16 
-    UnsignedInteger[] hkdf_label = get_tls_hkdf_label(key_length, "quic key", (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{0}, 8));
+    UnsignedInteger[] hkdf_label = get_tls_hkdf_label(key_length, "key", (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{0}, 8));
     return Util.get_prefix(hkdf_expand(secret, hkdf_label), key_length);
   }
 
   public static UnsignedInteger[] hkdf_expand_derive_iv(UnsignedInteger[] secret, int iv_length) {
     // For AES GCM 128, the iv length is 12 
-    UnsignedInteger[] hkdf_label = get_tls_hkdf_label(iv_length, "quic iv", (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{0}, 8));
+    UnsignedInteger[] hkdf_label = get_tls_hkdf_label(iv_length, "iv", (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{0}, 8));
     return Util.get_prefix(hkdf_expand(secret, hkdf_label), iv_length);
   }
 
@@ -113,4 +113,57 @@ public class HKDF {
 
 
 
+  // QUIC KEY DERIVATION
+
+  public static UnsignedInteger[] quic_get_tls_hkdf_label(int output_len, String label_string, UnsignedInteger[] context_hash) {
+
+    // Get length of the desired output represented as 2 bytes 
+    UnsignedInteger output_len_in_bytes = UnsignedInteger.instantiateFrom(16, output_len).copy(16);
+    UnsignedInteger[] output_len_bytes = {UnsignedInteger.instantiateFrom(8, output_len_in_bytes.shiftRight(8)).copy(8), UnsignedInteger.instantiateFrom(8, output_len_in_bytes).copy(8)};
+
+    // Append "tls13 " to the label string  
+    UnsignedInteger[] label_bytes = Util.string_to_bytes("tls13 " + label_string);
+
+    // Prepend the length of the new label represented as 1 byte 
+    UnsignedInteger[] label_len_byte = {UnsignedInteger.instantiateFrom(8, 6 + label_string.length()).copy(8)};
+
+    // Reprsent the length of the context hash as 1 byte 
+    UnsignedInteger[] context_hash_len_byte = {UnsignedInteger.instantiateFrom(8, context_hash.length).copy(8)};
+
+    // The final label is the concatenation of the following: 
+    // 1. length of the required output as 2 bytes 
+    // 2. the label prepended by its length as one byte 
+    // 3. the context hash prepended by its length as one byte 
+    UnsignedInteger[][] arrays_to_concat = {output_len_bytes, label_len_byte, label_bytes, context_hash_len_byte, context_hash};
+    UnsignedInteger[] hkdf_label = Util.concat(arrays_to_concat);
+
+    return hkdf_label;
+  }
+
+  public static UnsignedInteger[] quic_hkdf_expand(UnsignedInteger[] key, UnsignedInteger[] info) {
+    UnsignedInteger[] the_one_byte = {UnsignedInteger.instantiateFrom(8, 1).copy(8)};
+    UnsignedInteger[] label = Util.concat(info, the_one_byte);
+
+    return hmac(key, label);
+  }
+
+  public static UnsignedInteger[] quic_hkdf_expand_derive_tk(UnsignedInteger[] secret, int key_length) {
+    // For AES GCM 128, the key length is 16 
+    UnsignedInteger[] hkdf_label = quic_get_tls_hkdf_label(key_length, "quic key", (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{0}, 8));
+    return Util.get_prefix(quic_hkdf_expand(secret, hkdf_label), key_length);
+  }
+
+  public static UnsignedInteger[] quic_hkdf_expand_derive_iv(UnsignedInteger[] secret, int iv_length) {
+    // For AES GCM 128, the iv length is 12 
+    UnsignedInteger[] hkdf_label = quic_get_tls_hkdf_label(iv_length, "quic iv", (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{0}, 8));
+    return Util.get_prefix(quic_hkdf_expand(secret, hkdf_label), iv_length);
+  }
+
+  public static UnsignedInteger[] quic_hkdf_expand_derive_secret(UnsignedInteger[] secret, String label_string, UnsignedInteger[] context_hash) {
+    // The length of all TLS 1.3 secrets are 32 bytes 
+
+    UnsignedInteger[] hkdf_label = quic_get_tls_hkdf_label(32, label_string, context_hash);
+
+    return quic_hkdf_expand(secret, hkdf_label);
+  }
 }

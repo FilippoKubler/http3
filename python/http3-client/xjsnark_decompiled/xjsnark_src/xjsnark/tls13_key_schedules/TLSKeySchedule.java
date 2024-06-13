@@ -55,11 +55,11 @@ public class TLSKeySchedule {
 
     UnsignedInteger[] ES = HKDF.hkdf_extract(Util.new_zero_array(32), PSK);
 
-    UnsignedInteger[] dES = HKDF.hkdf_expand_derive_secret(ES, "derived", SHA2.hash_of_empty());
+    UnsignedInteger[] dES = HKDF.quic_hkdf_expand_derive_secret(ES, "derived", SHA2.hash_of_empty());
 
-    UnsignedInteger[] BK = HKDF.hkdf_expand_derive_secret(ES, "res binder", SHA2.hash_of_empty());
+    UnsignedInteger[] BK = HKDF.quic_hkdf_expand_derive_secret(ES, "res binder", SHA2.hash_of_empty());
 
-    UnsignedInteger[] fk_B = HKDF.hkdf_expand_derive_secret(BK, "finished", (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{0}, 8));
+    UnsignedInteger[] fk_B = HKDF.quic_hkdf_expand_derive_secret(BK, "finished", (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{0}, 8));
 
     // This is the binder derived by the purported PSK that was given as a witness to the circuit 
     UnsignedInteger[] derived_binder = HKDF.hmac(fk_B, H_5);
@@ -67,7 +67,7 @@ public class TLSKeySchedule {
     // Verify that the derived binder is the same as the one from the transcript 
     Util.combine_8_into_256(REAL_BINDER).forceEqual(Util.combine_8_into_256(derived_binder));
 
-    UnsignedInteger[] ETS = HKDF.hkdf_expand_derive_secret(ES, "c e traffic", H_1);
+    UnsignedInteger[] ETS = HKDF.quic_hkdf_expand_derive_secret(ES, "c e traffic", H_1);
 
     UnsignedInteger[] tk_early = HKDF.hkdf_expand_derive_tk(ETS, 16);
     UnsignedInteger[] iv_early = HKDF.hkdf_expand_derive_iv(ETS, 12);
@@ -94,7 +94,7 @@ public class TLSKeySchedule {
   public static UnsignedInteger[][] get1RTT(UnsignedInteger DHE_share, FieldElement Ax, FieldElement Ay, FieldElement Bx, FieldElement By, UnsignedInteger[] H2, UnsignedInteger[] CH_SH, UnsignedInteger CH_SH_len, UnsignedInteger[] ServExt_ct, UnsignedInteger ServExt_len, UnsignedInteger[] ServExt_tail_ct, UnsignedInteger[] appl_ct) {
 
     UnsignedInteger[] ES = HKDF.hkdf_extract(Util.new_zero_array(32), Util.new_zero_array(32));
-    UnsignedInteger[] dES = HKDF.hkdf_expand_derive_secret(ES, "derived", SHA2.hash_of_empty());
+    UnsignedInteger[] dES = HKDF.quic_hkdf_expand_derive_secret(ES, "derived", SHA2.hash_of_empty());
 
     // This function's goals: 
     // (1) Verify that G^sk = A where G is the generator of secp256 
@@ -103,13 +103,13 @@ public class TLSKeySchedule {
 
     UnsignedInteger[] HS = HKDF.hkdf_extract(dES, DHE);
 
-    UnsignedInteger[] SHTS = HKDF.hkdf_expand_derive_secret(HS, "s hs traffic", H2);
+    UnsignedInteger[] SHTS = HKDF.quic_hkdf_expand_derive_secret(HS, "s hs traffic", H2);
 
     // traffic key and iv for "server handshake" messages 
     UnsignedInteger[] tk_shs = HKDF.hkdf_expand_derive_tk(SHTS, 16);
     UnsignedInteger[] iv_shs = HKDF.hkdf_expand_derive_iv(SHTS, 12);
 
-    UnsignedInteger[] dHS = HKDF.hkdf_expand_derive_secret(HS, "derived", SHA2.hash_of_empty());
+    UnsignedInteger[] dHS = HKDF.quic_hkdf_expand_derive_secret(HS, "derived", SHA2.hash_of_empty());
 
     UnsignedInteger[] MS = HKDF.hkdf_extract(dHS, Util.new_zero_array(32));
 
@@ -131,7 +131,7 @@ public class TLSKeySchedule {
     // of length CH_SH_len + ServExt_len 
     UnsignedInteger[] H3 = SHA2.sha2_of_prefix(TR3, CH_SH_len.add(ServExt_len).copy(16), Serv_Ext_tail);
 
-    UnsignedInteger[] CATS = HKDF.hkdf_expand_derive_secret(MS, "c ap traffic", H3);
+    UnsignedInteger[] CATS = HKDF.quic_hkdf_expand_derive_secret(MS, "c ap traffic", H3);
 
     UnsignedInteger[] tk_capp = HKDF.hkdf_expand_derive_tk(CATS, 16);
     UnsignedInteger[] iv_capp = HKDF.hkdf_expand_derive_iv(CATS, 12);
@@ -164,55 +164,29 @@ public class TLSKeySchedule {
   // SHA_H_Checkpoint - the H-state of SHA up to the last whole block of TR7
   public static UnsignedInteger[][] get1RTT_HS_new(UnsignedInteger[] HS, UnsignedInteger[] H2, UnsignedInteger TR3_len, UnsignedInteger CertVerify_len, UnsignedInteger[] CertVerify_ct_tail, UnsignedInteger[] ServerFinished_ct, UnsignedInteger CertVerify_tail_len, UnsignedInteger[] SHA_H_Checkpoint, UnsignedInteger[] appl_ct) {
 
-    for (int i = 0; i < HS.length; i++) {
-      CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(HS[i], "HS");
-    }
-
-    for (int i = 0; i < H2.length; i++) {
-      CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(HS[i], "H2");
-    }
-
-    CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(TR3_len, "TR3_len");
-    CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(CertVerify_len, "CertVerify_len");
-
-    for (int i = 0; i < CertVerify_ct_tail.length; i++) {
-      CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(CertVerify_ct_tail[i], "CertVerify_ct_tail");
-    }
-
-    for (int i = 0; i < ServerFinished_ct.length; i++) {
-      CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(ServerFinished_ct[i], "ServerFinished_ct");
-    }
-
-    CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(CertVerify_tail_len, "CertVerify_tail_len");
-
-    for (int i = 0; i < SHA_H_Checkpoint.length; i++) {
-      CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(SHA_H_Checkpoint[i], "SHA_H_Checkpoint");
-    }
-
-    for (int i = 0; i < appl_ct.length; i++) {
-      CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(appl_ct[i], "appl_ct");
-    }
+    // INPUTS ARE CORRECT 
 
 
-    UnsignedInteger[] SHTS = HKDF.hkdf_expand_derive_secret(HS, "s hs traffic", H2);
-    for (int i = 0; i < SHTS.length; i++) {
-      CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(SHTS[i], "S HS Traffic");
-    }
+
+
+
+
+
+
+
+    // KEYS ARE CORRECT 
+
+    UnsignedInteger[] SHTS = HKDF.quic_hkdf_expand_derive_secret(HS, "s hs traffic", H2);
 
     // traffic key and iv for "server handshake" messages 
-    UnsignedInteger[] tk_shs = HKDF.hkdf_expand_derive_tk(SHTS, 16);
-    for (int i = 0; i < tk_shs.length; i++) {
-      CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(tk_shs[i], "tk_shs");
-    }
+    UnsignedInteger[] tk_shs = HKDF.quic_hkdf_expand_derive_tk(SHTS, 16);
 
-    UnsignedInteger[] iv_shs = HKDF.hkdf_expand_derive_iv(SHTS, 12);
-    for (int i = 0; i < iv_shs.length; i++) {
-      CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(iv_shs[i], "iv_shs");
-    }
+    UnsignedInteger[] iv_shs = HKDF.quic_hkdf_expand_derive_iv(SHTS, 12);
 
     // TODO: check if I can deep copy iv_shs last byte instead of xoring 2 times 
     // XOR original IV with the packet number (eiter 0x02 or 0x03) 
-    iv_shs[iv_shs.length - 1].assign(iv_shs[iv_shs.length - 1].xorBitwise(new BigInteger("" + 0x02)), 8);
+    iv_shs[iv_shs.length - 1].assign(iv_shs[iv_shs.length - 1].xorBitwise(new BigInteger("" + 0x01)), 8);
+
 
     // TODO: consider switching to TR3_len directly 
     UnsignedInteger TR7_len = TR3_len.subtract(UnsignedInteger.instantiateFrom(8, 36)).copy(16);
@@ -220,22 +194,31 @@ public class TLSKeySchedule {
 
     // TODO: understand if this can be done outside the circuit 
     // CertVerify = CertVerify_head || CertVerify_tail 
-    UnsignedInteger CertVerify_head_len = UnsignedInteger.instantiateFrom(16, CertVerify_len.subtract(CertVerify_tail_len)).copy(16);
+    UnsignedInteger CertVerify_head_len = CertVerify_len.subtract(CertVerify_tail_len).copy(16);
 
     // To decrypt the tail, we need to calculate the GCM counter block number 
     UnsignedInteger gcm_block_number = UnsignedInteger.instantiateFrom(8, CertVerify_head_len.div(UnsignedInteger.instantiateFrom(16, 16))).copy(8);
     // Additionally, the tail might not start perfectly at the start of a block 
     // That is, the length of head may not be a multiple of 16 
-    UnsignedInteger offset = UnsignedInteger.instantiateFrom(8, CertVerify_head_len.mod(UnsignedInteger.instantiateFrom(8, 16))).copy(8);
+    UnsignedInteger offset = UnsignedInteger.instantiateFrom(8, CertVerify_head_len.mod(UnsignedInteger.instantiateFrom(16, 16))).copy(8);
 
+
+    // INPUT CORRETTI, OUTPUT SBAGLIATO 
     // This function decrypts the tail with the specific GCM block number and offset within the block (VERY CONVENIENT) 
     UnsignedInteger[] CertVerify_tail = AES_GCM.aes_gcm_decrypt_128bytes_middle(tk_shs, iv_shs, CertVerify_ct_tail, gcm_block_number.copy(8), offset.copy(8));
+    for (int i = 0; i < CertVerify_tail.length; i++) {
+      CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(CertVerify_tail[i], "CertVerify_tail");
+    }
+
     // AES_128_GCM_SHA256 
     // xoring again for the next record layer 
     iv_shs[iv_shs.length - 1].assign(iv_shs[iv_shs.length - 1].xorBitwise(new BigInteger("" + 0x02)), 8);
     iv_shs[iv_shs.length - 1].assign(iv_shs[iv_shs.length - 1].xorBitwise(new BigInteger("" + 0x03)), 8);
     // Decrypting the FULL serverfinished (easy) 
     UnsignedInteger[] ServerFinished = AES_GCM.aes_gcm_decrypt(tk_shs, iv_shs, ServerFinished_ct);
+    for (int i = 0; i < ServerFinished.length; i++) {
+      CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(ServerFinished[i], "ServerFinished");
+    }
 
     // This function calculates the hash of TR3 and TR7 where TR7 is TR3 without the last 36 characters 
     // starting with the SHA_H_Checkpoint provided as a checkpoint state of SHA that is common to both transcripts. 
@@ -252,31 +235,31 @@ public class TLSKeySchedule {
     // TODO: is it necessary to pad with zeroes? 
     for (int i = 0; i < 128; i++) {
       {
-        Bit bit_a0rc0xc = UnsignedInteger.instantiateFrom(8, i).isLessThan(CertVerify_tail_len).copy();
-        boolean c_a0rc0xc = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0rc0xc);
-        if (c_a0rc0xc) {
-          if (bit_a0rc0xc.getConstantValue()) {
+        Bit bit_a0oc0xc = UnsignedInteger.instantiateFrom(8, i).isLessThan(CertVerify_tail_len).copy();
+        boolean c_a0oc0xc = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0oc0xc);
+        if (c_a0oc0xc) {
+          if (bit_a0oc0xc.getConstantValue()) {
             Decrypted_Merged_tail[i].assign(CertVerify_tail[i], 8);
           } else {
             {
-              Bit bit_a0a0a0a2a0a96a57 = UnsignedInteger.instantiateFrom(8, i).subtract(CertVerify_tail_len).isLessThan(UnsignedInteger.instantiateFrom(8, 36)).copy();
-              boolean c_a0a0a0a2a0a96a57 = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0a0a0a2a0a96a57);
-              if (c_a0a0a0a2a0a96a57) {
-                if (bit_a0a0a0a2a0a96a57.getConstantValue()) {
+              Bit bit_a0a0a0a2a0a66a57 = UnsignedInteger.instantiateFrom(8, i).subtract(CertVerify_tail_len).isLessThan(UnsignedInteger.instantiateFrom(8, 36)).copy();
+              boolean c_a0a0a0a2a0a66a57 = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0a0a0a2a0a66a57);
+              if (c_a0a0a0a2a0a66a57) {
+                if (bit_a0a0a0a2a0a66a57.getConstantValue()) {
                   Decrypted_Merged_tail[i].assign(ServFinRam.read(UnsignedInteger.instantiateFrom(8, i).subtract(CertVerify_tail_len)), 8);
                 } else {
                   {
-                    Bit bit_a0a0a2a0a0a0a0c0a0rc0xc = UnsignedInteger.instantiateFrom(8, i).isGreaterThan(CertVerify_tail_len.add(UnsignedInteger.instantiateFrom(8, 36))).copy();
-                    boolean c_a0a0a2a0a0a0a0c0a0rc0xc = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0a0a2a0a0a0a0c0a0rc0xc);
-                    if (c_a0a0a2a0a0a0a0c0a0rc0xc) {
-                      if (bit_a0a0a2a0a0a0a0c0a0rc0xc.getConstantValue()) {
+                    Bit bit_a0a0a2a0a0a0a0c0a0oc0xc = UnsignedInteger.instantiateFrom(8, i).isGreaterThan(CertVerify_tail_len.add(UnsignedInteger.instantiateFrom(8, 36))).copy();
+                    boolean c_a0a0a2a0a0a0a0c0a0oc0xc = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0a0a2a0a0a0a0c0a0oc0xc);
+                    if (c_a0a0a2a0a0a0a0c0a0oc0xc) {
+                      if (bit_a0a0a2a0a0a0a0c0a0oc0xc.getConstantValue()) {
                         Decrypted_Merged_tail[i].assign(UnsignedInteger.instantiateFrom(8, 0), 8);
                       } else {
 
                       }
                     } else {
                       ConditionalScopeTracker.pushMain();
-                      ConditionalScopeTracker.push(bit_a0a0a2a0a0a0a0c0a0rc0xc);
+                      ConditionalScopeTracker.push(bit_a0a0a2a0a0a0a0c0a0oc0xc);
                       Decrypted_Merged_tail[i].assign(UnsignedInteger.instantiateFrom(8, 0), 8);
 
                       ConditionalScopeTracker.pop();
@@ -292,7 +275,7 @@ public class TLSKeySchedule {
                 }
               } else {
                 ConditionalScopeTracker.pushMain();
-                ConditionalScopeTracker.push(bit_a0a0a0a2a0a96a57);
+                ConditionalScopeTracker.push(bit_a0a0a0a2a0a66a57);
                 Decrypted_Merged_tail[i].assign(ServFinRam.read(UnsignedInteger.instantiateFrom(8, i).subtract(CertVerify_tail_len)), 8);
 
                 ConditionalScopeTracker.pop();
@@ -300,17 +283,17 @@ public class TLSKeySchedule {
                 ConditionalScopeTracker.push(new Bit(true));
 
                 {
-                  Bit bit_a0a0a0a0c0a0rc0xc_0 = UnsignedInteger.instantiateFrom(8, i).isGreaterThan(CertVerify_tail_len.add(UnsignedInteger.instantiateFrom(8, 36))).copy();
-                  boolean c_a0a0a0a0c0a0rc0xc_0 = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0a0a0a0c0a0rc0xc_0);
-                  if (c_a0a0a0a0c0a0rc0xc_0) {
-                    if (bit_a0a0a0a0c0a0rc0xc_0.getConstantValue()) {
+                  Bit bit_a0a0a0a0c0a0oc0xc_0 = UnsignedInteger.instantiateFrom(8, i).isGreaterThan(CertVerify_tail_len.add(UnsignedInteger.instantiateFrom(8, 36))).copy();
+                  boolean c_a0a0a0a0c0a0oc0xc_0 = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0a0a0a0c0a0oc0xc_0);
+                  if (c_a0a0a0a0c0a0oc0xc_0) {
+                    if (bit_a0a0a0a0c0a0oc0xc_0.getConstantValue()) {
                       Decrypted_Merged_tail[i].assign(UnsignedInteger.instantiateFrom(8, 0), 8);
                     } else {
 
                     }
                   } else {
                     ConditionalScopeTracker.pushMain();
-                    ConditionalScopeTracker.push(bit_a0a0a0a0c0a0rc0xc_0);
+                    ConditionalScopeTracker.push(bit_a0a0a0a0c0a0oc0xc_0);
                     Decrypted_Merged_tail[i].assign(UnsignedInteger.instantiateFrom(8, 0), 8);
 
                     ConditionalScopeTracker.pop();
@@ -331,7 +314,7 @@ public class TLSKeySchedule {
           }
         } else {
           ConditionalScopeTracker.pushMain();
-          ConditionalScopeTracker.push(bit_a0rc0xc);
+          ConditionalScopeTracker.push(bit_a0oc0xc);
           Decrypted_Merged_tail[i].assign(CertVerify_tail[i], 8);
 
           ConditionalScopeTracker.pop();
@@ -339,24 +322,24 @@ public class TLSKeySchedule {
           ConditionalScopeTracker.push(new Bit(true));
 
           {
-            Bit bit_a0a0a96a57_0 = UnsignedInteger.instantiateFrom(8, i).subtract(CertVerify_tail_len).isLessThan(UnsignedInteger.instantiateFrom(8, 36)).copy();
-            boolean c_a0a0a96a57_0 = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0a0a96a57_0);
-            if (c_a0a0a96a57_0) {
-              if (bit_a0a0a96a57_0.getConstantValue()) {
+            Bit bit_a0a0a66a57_0 = UnsignedInteger.instantiateFrom(8, i).subtract(CertVerify_tail_len).isLessThan(UnsignedInteger.instantiateFrom(8, 36)).copy();
+            boolean c_a0a0a66a57_0 = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0a0a66a57_0);
+            if (c_a0a0a66a57_0) {
+              if (bit_a0a0a66a57_0.getConstantValue()) {
                 Decrypted_Merged_tail[i].assign(ServFinRam.read(UnsignedInteger.instantiateFrom(8, i).subtract(CertVerify_tail_len)), 8);
               } else {
                 {
-                  Bit bit_a0a0a2a0a8a0c0a0rc0xc = UnsignedInteger.instantiateFrom(8, i).isGreaterThan(CertVerify_tail_len.add(UnsignedInteger.instantiateFrom(8, 36))).copy();
-                  boolean c_a0a0a2a0a8a0c0a0rc0xc = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0a0a2a0a8a0c0a0rc0xc);
-                  if (c_a0a0a2a0a8a0c0a0rc0xc) {
-                    if (bit_a0a0a2a0a8a0c0a0rc0xc.getConstantValue()) {
+                  Bit bit_a0a0a2a0a8a0c0a0oc0xc = UnsignedInteger.instantiateFrom(8, i).isGreaterThan(CertVerify_tail_len.add(UnsignedInteger.instantiateFrom(8, 36))).copy();
+                  boolean c_a0a0a2a0a8a0c0a0oc0xc = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0a0a2a0a8a0c0a0oc0xc);
+                  if (c_a0a0a2a0a8a0c0a0oc0xc) {
+                    if (bit_a0a0a2a0a8a0c0a0oc0xc.getConstantValue()) {
                       Decrypted_Merged_tail[i].assign(UnsignedInteger.instantiateFrom(8, 0), 8);
                     } else {
 
                     }
                   } else {
                     ConditionalScopeTracker.pushMain();
-                    ConditionalScopeTracker.push(bit_a0a0a2a0a8a0c0a0rc0xc);
+                    ConditionalScopeTracker.push(bit_a0a0a2a0a8a0c0a0oc0xc);
                     Decrypted_Merged_tail[i].assign(UnsignedInteger.instantiateFrom(8, 0), 8);
 
                     ConditionalScopeTracker.pop();
@@ -372,7 +355,7 @@ public class TLSKeySchedule {
               }
             } else {
               ConditionalScopeTracker.pushMain();
-              ConditionalScopeTracker.push(bit_a0a0a96a57_0);
+              ConditionalScopeTracker.push(bit_a0a0a66a57_0);
               Decrypted_Merged_tail[i].assign(ServFinRam.read(UnsignedInteger.instantiateFrom(8, i).subtract(CertVerify_tail_len)), 8);
 
               ConditionalScopeTracker.pop();
@@ -380,17 +363,17 @@ public class TLSKeySchedule {
               ConditionalScopeTracker.push(new Bit(true));
 
               {
-                Bit bit_a0a0a0rc0xc_2 = UnsignedInteger.instantiateFrom(8, i).isGreaterThan(CertVerify_tail_len.add(UnsignedInteger.instantiateFrom(8, 36))).copy();
-                boolean c_a0a0a0rc0xc_2 = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0a0a0rc0xc_2);
-                if (c_a0a0a0rc0xc_2) {
-                  if (bit_a0a0a0rc0xc_2.getConstantValue()) {
+                Bit bit_a0a0a0oc0xc_2 = UnsignedInteger.instantiateFrom(8, i).isGreaterThan(CertVerify_tail_len.add(UnsignedInteger.instantiateFrom(8, 36))).copy();
+                boolean c_a0a0a0oc0xc_2 = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0a0a0oc0xc_2);
+                if (c_a0a0a0oc0xc_2) {
+                  if (bit_a0a0a0oc0xc_2.getConstantValue()) {
                     Decrypted_Merged_tail[i].assign(UnsignedInteger.instantiateFrom(8, 0), 8);
                   } else {
 
                   }
                 } else {
                   ConditionalScopeTracker.pushMain();
-                  ConditionalScopeTracker.push(bit_a0a0a0rc0xc_2);
+                  ConditionalScopeTracker.push(bit_a0a0a0oc0xc_2);
                   Decrypted_Merged_tail[i].assign(UnsignedInteger.instantiateFrom(8, 0), 8);
 
                   ConditionalScopeTracker.pop();
@@ -420,7 +403,7 @@ public class TLSKeySchedule {
     UnsignedInteger[] H_7 = H7_H3[0];
     UnsignedInteger[] H_3 = H7_H3[1];
     // Derive the SF value from transcript hash H7 up to Certificate Verify 
-    UnsignedInteger[] fk_S = HKDF.hkdf_expand_derive_secret(SHTS, "finished", (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{0}, 8));
+    UnsignedInteger[] fk_S = HKDF.quic_hkdf_expand_derive_secret(SHTS, "finished", (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{0}, 8));
     UnsignedInteger[] SF_calculated = HKDF.hmac(fk_S, H_7);
     for (int i = 0; i < SF_calculated.length; i++) {
       CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(SF_calculated[i], "SF Calculated");
@@ -440,11 +423,11 @@ public class TLSKeySchedule {
     // Verify that the two SF values are identical 
     Util.combine_8_into_256(SF_calculated).forceEqual(Util.combine_8_into_256(SF_transcript));
 
-    UnsignedInteger[] dHS = HKDF.hkdf_expand_derive_secret(HS, "derived", SHA2.hash_of_empty());
+    UnsignedInteger[] dHS = HKDF.quic_hkdf_expand_derive_secret(HS, "derived", SHA2.hash_of_empty());
 
     UnsignedInteger[] MS = HKDF.hkdf_extract(dHS, Util.new_zero_array(32));
 
-    UnsignedInteger[] CATS = HKDF.hkdf_expand_derive_secret(MS, "c ap traffic", H_3);
+    UnsignedInteger[] CATS = HKDF.quic_hkdf_expand_derive_secret(MS, "c ap traffic", H_3);
 
     // client application traffic key, iv 
     UnsignedInteger[] tk_capp = HKDF.hkdf_expand_derive_tk(CATS, 16);
@@ -454,6 +437,297 @@ public class TLSKeySchedule {
 
     return new UnsignedInteger[][]{dns_plaintext, tk_shs, iv_shs, tk_capp, iv_capp, H_3, SF_calculated};
   }
+
+
+  public static UnsignedInteger[][] quic_get1RTT_HS_new(UnsignedInteger[] HS, UnsignedInteger[] H2, UnsignedInteger TR3_len, UnsignedInteger CertVerify_len, UnsignedInteger[] CertVerify_ct_tail, UnsignedInteger[] ServerFinished_ct, UnsignedInteger CertVerify_tail_len, UnsignedInteger[] SHA_H_Checkpoint, UnsignedInteger[] appl_ct, UnsignedInteger[] CertVerify_ct) {
+
+    // INPUTS ARE CORRECT 
+
+
+
+
+
+
+
+
+
+    // KEYS ARE CORRECT 
+
+    UnsignedInteger[] SHTS = HKDF.quic_hkdf_expand_derive_secret(HS, "s hs traffic", H2);
+
+    // traffic key and iv for "server handshake" messages 
+    UnsignedInteger[] tk_shs = HKDF.quic_hkdf_expand_derive_tk(SHTS, 16);
+    for (int i = 0; i < tk_shs.length; i++) {
+      CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(tk_shs[i], "tk_shs");
+    }
+
+    UnsignedInteger[] iv_shs = HKDF.quic_hkdf_expand_derive_iv(SHTS, 12);
+
+    // TODO: check if I can deep copy iv_shs last byte instead of xoring 2 times 
+    // XOR original IV with the packet number (eiter 0x02 or 0x03) 
+    iv_shs[iv_shs.length - 1].assign(iv_shs[iv_shs.length - 1].xorBitwise(new BigInteger("" + 0x02)), 8);
+    for (int i = 0; i < iv_shs.length; i++) {
+      CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(iv_shs[i], "iv_shs");
+    }
+
+
+    // TODO: consider switching to TR3_len directly 
+    UnsignedInteger TR7_len = TR3_len.subtract(UnsignedInteger.instantiateFrom(8, 36)).copy(16);
+
+    // TODO: understand if this can be done outside the circuit 
+    // CertVerify = CertVerify_head || CertVerify_tail 
+    UnsignedInteger CertVerify_head_len = CertVerify_len.subtract(CertVerify_tail_len).copy(16);
+
+    // To decrypt the tail, we need to calculate the GCM counter block number 
+    UnsignedInteger gcm_block_number = UnsignedInteger.instantiateFrom(8, CertVerify_head_len.div(UnsignedInteger.instantiateFrom(16, 16))).copy(8);
+    // Additionally, the tail might not start perfectly at the start of a block 
+    // That is, the length of head may not be a multiple of 16 
+    UnsignedInteger offset = UnsignedInteger.instantiateFrom(8, CertVerify_head_len.mod(UnsignedInteger.instantiateFrom(16, 16))).copy(8);
+
+    for (int i = 0; i < ServerFinished_ct.length; i++) {
+      CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(ServerFinished_ct[i], "ServerFinished_ct");
+    }
+    UnsignedInteger[] ServerFinished_1 = AES_GCM.aes_gcm_decrypt(tk_shs, iv_shs, ServerFinished_ct);
+    for (int i = 0; i < ServerFinished_1.length; i++) {
+      CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(ServerFinished_1[i], "ServerFinished_1");
+    }
+
+    // INPUT CORRETTI, OUTPUT SBAGLIATO 
+    // This function decrypts the tail with the specific GCM block number and offset within the block (VERY CONVENIENT) 
+    UnsignedInteger[] CertVerify_tail = AES_GCM.aes_gcm_decrypt_128bytes_middle(tk_shs, iv_shs, CertVerify_ct_tail, gcm_block_number.copy(8), offset.copy(8));
+    for (int i = 0; i < CertVerify_tail.length; i++) {
+      CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(CertVerify_tail[i], "CertVerify_tail");
+    }
+
+    // AES_128_GCM_SHA256 
+    // xoring again for the next record layer 
+    iv_shs[iv_shs.length - 1].assign(iv_shs[iv_shs.length - 1].xorBitwise(new BigInteger("" + 0x02)), 8);
+    iv_shs[iv_shs.length - 1].assign(iv_shs[iv_shs.length - 1].xorBitwise(new BigInteger("" + 0x03)), 8);
+    // Decrypting the FULL serverfinished (easy) 
+    UnsignedInteger[] ServerFinished = AES_GCM.aes_gcm_decrypt(tk_shs, iv_shs, ServerFinished_ct);
+    for (int i = 0; i < ServerFinished.length; i++) {
+      CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(ServerFinished[i], "ServerFinished");
+    }
+
+    // This function calculates the hash of TR3 and TR7 where TR7 is TR3 without the last 36 characters 
+    // starting with the SHA_H_Checkpoint provided as a checkpoint state of SHA that is common to both transcripts. 
+    // The inputs are: 
+    // - the checkpoint state 
+    // - the length of TR3 and TR7 (the latter must be a prefix of the former) 
+    // - the tail of TR3 (the part after the checkpoint) 
+    // - the length of the tail up to TR3 
+    // - the length of the tail up to TR7 
+    UnsignedInteger[] Decrypted_Merged_tail = (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{128}, 8);
+    SmartMemory<UnsignedInteger> ServFinRam;
+    ServFinRam = new SmartMemory(ServerFinished, UnsignedInteger.__getClassRef(), new Object[]{"8"});
+
+    // TODO: is it necessary to pad with zeroes? 
+    for (int i = 0; i < 128; i++) {
+      {
+        Bit bit_a0sc0ad = UnsignedInteger.instantiateFrom(8, i).isLessThan(CertVerify_tail_len).copy();
+        boolean c_a0sc0ad = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0sc0ad);
+        if (c_a0sc0ad) {
+          if (bit_a0sc0ad.getConstantValue()) {
+            Decrypted_Merged_tail[i].assign(CertVerify_tail[i], 8);
+          } else {
+            {
+              Bit bit_a0a0a0a2a0a07a87 = UnsignedInteger.instantiateFrom(8, i).subtract(CertVerify_tail_len).isLessThan(UnsignedInteger.instantiateFrom(8, 36)).copy();
+              boolean c_a0a0a0a2a0a07a87 = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0a0a0a2a0a07a87);
+              if (c_a0a0a0a2a0a07a87) {
+                if (bit_a0a0a0a2a0a07a87.getConstantValue()) {
+                  Decrypted_Merged_tail[i].assign(ServFinRam.read(UnsignedInteger.instantiateFrom(8, i).subtract(CertVerify_tail_len)), 8);
+                } else {
+                  {
+                    Bit bit_a0a0a2a0a0a0a0c0a0sc0ad = UnsignedInteger.instantiateFrom(8, i).isGreaterThan(CertVerify_tail_len.add(UnsignedInteger.instantiateFrom(8, 36))).copy();
+                    boolean c_a0a0a2a0a0a0a0c0a0sc0ad = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0a0a2a0a0a0a0c0a0sc0ad);
+                    if (c_a0a0a2a0a0a0a0c0a0sc0ad) {
+                      if (bit_a0a0a2a0a0a0a0c0a0sc0ad.getConstantValue()) {
+                        Decrypted_Merged_tail[i].assign(UnsignedInteger.instantiateFrom(8, 0), 8);
+                      } else {
+
+                      }
+                    } else {
+                      ConditionalScopeTracker.pushMain();
+                      ConditionalScopeTracker.push(bit_a0a0a2a0a0a0a0c0a0sc0ad);
+                      Decrypted_Merged_tail[i].assign(UnsignedInteger.instantiateFrom(8, 0), 8);
+
+                      ConditionalScopeTracker.pop();
+
+                      ConditionalScopeTracker.push(new Bit(true));
+
+                      ConditionalScopeTracker.pop();
+                      ConditionalScopeTracker.popMain();
+                    }
+
+                  }
+
+                }
+              } else {
+                ConditionalScopeTracker.pushMain();
+                ConditionalScopeTracker.push(bit_a0a0a0a2a0a07a87);
+                Decrypted_Merged_tail[i].assign(ServFinRam.read(UnsignedInteger.instantiateFrom(8, i).subtract(CertVerify_tail_len)), 8);
+
+                ConditionalScopeTracker.pop();
+
+                ConditionalScopeTracker.push(new Bit(true));
+
+                {
+                  Bit bit_a0a0a0a0c0a0sc0ad_0 = UnsignedInteger.instantiateFrom(8, i).isGreaterThan(CertVerify_tail_len.add(UnsignedInteger.instantiateFrom(8, 36))).copy();
+                  boolean c_a0a0a0a0c0a0sc0ad_0 = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0a0a0a0c0a0sc0ad_0);
+                  if (c_a0a0a0a0c0a0sc0ad_0) {
+                    if (bit_a0a0a0a0c0a0sc0ad_0.getConstantValue()) {
+                      Decrypted_Merged_tail[i].assign(UnsignedInteger.instantiateFrom(8, 0), 8);
+                    } else {
+
+                    }
+                  } else {
+                    ConditionalScopeTracker.pushMain();
+                    ConditionalScopeTracker.push(bit_a0a0a0a0c0a0sc0ad_0);
+                    Decrypted_Merged_tail[i].assign(UnsignedInteger.instantiateFrom(8, 0), 8);
+
+                    ConditionalScopeTracker.pop();
+
+                    ConditionalScopeTracker.push(new Bit(true));
+
+                    ConditionalScopeTracker.pop();
+                    ConditionalScopeTracker.popMain();
+                  }
+
+                }
+                ConditionalScopeTracker.pop();
+                ConditionalScopeTracker.popMain();
+              }
+
+            }
+
+          }
+        } else {
+          ConditionalScopeTracker.pushMain();
+          ConditionalScopeTracker.push(bit_a0sc0ad);
+          Decrypted_Merged_tail[i].assign(CertVerify_tail[i], 8);
+
+          ConditionalScopeTracker.pop();
+
+          ConditionalScopeTracker.push(new Bit(true));
+
+          {
+            Bit bit_a0a0a07a87_0 = UnsignedInteger.instantiateFrom(8, i).subtract(CertVerify_tail_len).isLessThan(UnsignedInteger.instantiateFrom(8, 36)).copy();
+            boolean c_a0a0a07a87_0 = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0a0a07a87_0);
+            if (c_a0a0a07a87_0) {
+              if (bit_a0a0a07a87_0.getConstantValue()) {
+                Decrypted_Merged_tail[i].assign(ServFinRam.read(UnsignedInteger.instantiateFrom(8, i).subtract(CertVerify_tail_len)), 8);
+              } else {
+                {
+                  Bit bit_a0a0a2a0a8a0c0a0sc0ad = UnsignedInteger.instantiateFrom(8, i).isGreaterThan(CertVerify_tail_len.add(UnsignedInteger.instantiateFrom(8, 36))).copy();
+                  boolean c_a0a0a2a0a8a0c0a0sc0ad = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0a0a2a0a8a0c0a0sc0ad);
+                  if (c_a0a0a2a0a8a0c0a0sc0ad) {
+                    if (bit_a0a0a2a0a8a0c0a0sc0ad.getConstantValue()) {
+                      Decrypted_Merged_tail[i].assign(UnsignedInteger.instantiateFrom(8, 0), 8);
+                    } else {
+
+                    }
+                  } else {
+                    ConditionalScopeTracker.pushMain();
+                    ConditionalScopeTracker.push(bit_a0a0a2a0a8a0c0a0sc0ad);
+                    Decrypted_Merged_tail[i].assign(UnsignedInteger.instantiateFrom(8, 0), 8);
+
+                    ConditionalScopeTracker.pop();
+
+                    ConditionalScopeTracker.push(new Bit(true));
+
+                    ConditionalScopeTracker.pop();
+                    ConditionalScopeTracker.popMain();
+                  }
+
+                }
+
+              }
+            } else {
+              ConditionalScopeTracker.pushMain();
+              ConditionalScopeTracker.push(bit_a0a0a07a87_0);
+              Decrypted_Merged_tail[i].assign(ServFinRam.read(UnsignedInteger.instantiateFrom(8, i).subtract(CertVerify_tail_len)), 8);
+
+              ConditionalScopeTracker.pop();
+
+              ConditionalScopeTracker.push(new Bit(true));
+
+              {
+                Bit bit_a0a0a0sc0ad_2 = UnsignedInteger.instantiateFrom(8, i).isGreaterThan(CertVerify_tail_len.add(UnsignedInteger.instantiateFrom(8, 36))).copy();
+                boolean c_a0a0a0sc0ad_2 = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0a0a0sc0ad_2);
+                if (c_a0a0a0sc0ad_2) {
+                  if (bit_a0a0a0sc0ad_2.getConstantValue()) {
+                    Decrypted_Merged_tail[i].assign(UnsignedInteger.instantiateFrom(8, 0), 8);
+                  } else {
+
+                  }
+                } else {
+                  ConditionalScopeTracker.pushMain();
+                  ConditionalScopeTracker.push(bit_a0a0a0sc0ad_2);
+                  Decrypted_Merged_tail[i].assign(UnsignedInteger.instantiateFrom(8, 0), 8);
+
+                  ConditionalScopeTracker.pop();
+
+                  ConditionalScopeTracker.push(new Bit(true));
+
+                  ConditionalScopeTracker.pop();
+                  ConditionalScopeTracker.popMain();
+                }
+
+              }
+              ConditionalScopeTracker.pop();
+              ConditionalScopeTracker.popMain();
+            }
+
+          }
+          ConditionalScopeTracker.pop();
+          ConditionalScopeTracker.popMain();
+        }
+
+      }
+    }
+    UnsignedInteger Decrypted_Merged_tail_len = CertVerify_tail_len.add(UnsignedInteger.instantiateFrom(8, 36)).copy(8);
+
+    UnsignedInteger[][] H7_H3 = SHA2.double_sha_from_checkpoint(SHA_H_Checkpoint, TR3_len.copy(16), TR7_len.copy(16), Decrypted_Merged_tail, Decrypted_Merged_tail_len.copy(8), Decrypted_Merged_tail_len.subtract(UnsignedInteger.instantiateFrom(8, 36)).copy(8));
+
+    UnsignedInteger[] H_7 = H7_H3[0];
+    UnsignedInteger[] H_3 = H7_H3[1];
+    // Derive the SF value from transcript hash H7 up to Certificate Verify 
+    UnsignedInteger[] fk_S = HKDF.quic_hkdf_expand_derive_secret(SHTS, "finished", (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{0}, 8));
+    UnsignedInteger[] SF_calculated = HKDF.hmac(fk_S, H_7);
+    for (int i = 0; i < SF_calculated.length; i++) {
+      CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(SF_calculated[i], "SF Calculated");
+    }
+
+
+    UnsignedInteger[] SF_transcript = (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{32}, 8);
+    SmartMemory<UnsignedInteger> ServerFinished_RAM = new SmartMemory(ServerFinished, UnsignedInteger.__getClassRef(), new Object[]{"8"});
+    for (int i = 0; i < 32; i++) {
+      SF_transcript[i].assign(ServerFinished_RAM.read(UnsignedInteger.instantiateFrom(8, i).add(UnsignedInteger.instantiateFrom(8, 4))), 8);
+    }
+    for (int i = 0; i < SF_transcript.length; i++) {
+      CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(SF_transcript[i], "SF_transcript:");
+    }
+
+
+    // Verify that the two SF values are identical 
+    Util.combine_8_into_256(SF_calculated).forceEqual(Util.combine_8_into_256(SF_transcript));
+
+    UnsignedInteger[] dHS = HKDF.quic_hkdf_expand_derive_secret(HS, "derived", SHA2.hash_of_empty());
+
+    UnsignedInteger[] MS = HKDF.hkdf_extract(dHS, Util.new_zero_array(32));
+
+    UnsignedInteger[] CATS = HKDF.quic_hkdf_expand_derive_secret(MS, "c ap traffic", H_3);
+
+    // client application traffic key, iv 
+    UnsignedInteger[] tk_capp = HKDF.hkdf_expand_derive_tk(CATS, 16);
+    UnsignedInteger[] iv_capp = HKDF.hkdf_expand_derive_iv(CATS, 12);
+
+    UnsignedInteger[] dns_plaintext = AES_GCM.aes_gcm_decrypt(tk_capp, iv_capp, appl_ct);
+
+    return new UnsignedInteger[][]{dns_plaintext, tk_shs, iv_shs, tk_capp, iv_capp, H_3, SF_calculated};
+  }
+
+
 
 
 
