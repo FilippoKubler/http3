@@ -505,8 +505,10 @@ async def perform_http_request(
     params['http3']['request'] = {
         'plaintext': client._quic.packets_transcript_json['CLIENT-HTTP3 REQUEST']['plaintext'],
         'ciphertext': client._quic.packets_transcript_json['CLIENT-HTTP3 REQUEST']['ciphertext'],
-        'length': client._quic.packets_transcript_json['CLIENT-HTTP3 REQUEST']['length'],        
+        'length': client._quic.packets_transcript_json['CLIENT-HTTP3 REQUEST']['length'],         
     }
+    params['http3']['request']['head'] = str(client._quic.packets_transcript_json['CLIENT-HTTP3 REQUEST']['STREAM-Frame']).split(params['http3']['request']['ciphertext'])[0]
+    params['http3']['request']['head_length'] = int( len(params['http3']['request']['head']) / 2 )
     params['http3']['response'] = {
         'plaintext': client._quic.packets_transcript_json['SERVER-HTTP3 RESPONSE']['plaintext'],
         'ciphertext': client._quic.packets_transcript_json['SERVER-HTTP3 RESPONSE']['ciphertext'],
@@ -520,7 +522,7 @@ async def perform_http_request(
     
     params['http3']['request']['huffman_path_encoding'] = hex(int(huffman_path_coding.ljust(round_up(len(huffman_path_coding)), '1'), 2))[2:]
 
-    params['http3']['request']['path_position'] = find_path_position(params['http3']['request']['plaintext'], params['http3']['request']['huffman_path_encoding'])
+    params['http3']['request']['path_position'] = int(find_path_position(params['http3']['request']['plaintext'], params['http3']['request']['huffman_path_encoding']) / 2)
 
 
     # CLIENT Packet Encryption -> aioquic/quic/packet_builder.py:338 (_end_packet function)
@@ -547,8 +549,9 @@ async def perform_http_request(
         f.write(params['http3']['request']['ciphertext']                                        + '\n') # HTTP3 Request
         f.write(params['certificate_verify']['H_state_tr7']                                     + '\n') # H_state_tr7
         f.write(str(params['handshake']['transcript'])                                          + '\n') # TR_3
-        f.write(str(params['http3']['request']['path_position'])                                + '\n') # Path poisition in Request
         f.write(str(params['certificate_verify']['head_length'])                                + '\n') # Certificate Verify Tail Head Length
+        f.write(str(params['http3']['request']['head_length'])                                  + '\n') # HTTP3 Request Head Length
+        f.write(str(params['http3']['request']['path_position'])                                + '\n') # Path poisition in Request
 
         f.write('~'*10 + '    EXPECTED VALUES    ' + '~'*10 + '\n')
         f.write(f'Certificate Verify Length: {params["certificate_verify"]["length"]}\n')
