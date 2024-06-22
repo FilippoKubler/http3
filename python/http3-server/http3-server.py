@@ -97,8 +97,6 @@ class HttpRequestHandler:
     async def redirect_request(self):
         message = await self.queue.get()
         request = self.scope
-
-        # print(self.stream_id)
         
         method 	= request['method']
         address = "http://localhost:31112" + request['path']
@@ -110,6 +108,9 @@ class HttpRequestHandler:
 
         print("\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
         print(f"Got HTTP/{request['http_version']} {method} Request from {request['client'][0]} to {request['path']}")
+        
+        for field, value in request.items():
+            print(field, value)
         
         if response.status_code == 200:
             print("\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
