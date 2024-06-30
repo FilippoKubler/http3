@@ -268,7 +268,10 @@ def round_up(x):
 
 
 def find_path_position(request: str, path_encoding: str):
-    return request.index(path_encoding)
+    try:
+        return request.index(path_encoding)
+    except ValueError:
+        return -1
 
 
 
@@ -498,7 +501,7 @@ async def perform_http_request(
     handshake_tail = get_tail_minus_36(params['handshake']['transcript'])
     params['certificate_verify']['tail'] = handshake_tail[0 : int(len(handshake_tail) - params['server_finished']['length']*2)] # 28 byte per completare il blocco con i primi 4 bytes del Server Finished (sha256)
     params['certificate_verify']['tail_length'] = int( len(params['certificate_verify']['tail']) / 2 )
-    params['certificate_verify']['head'] = str(client._quic.packets_transcript_json['SERVER-CertificateVerify']['CRYPTO-Frame']).split(params['certificate_verify']['tail'])[0] # Compute the head before the tail
+    params['certificate_verify']['head'] = str(client._quic.packets_transcript_json['SERVER-CertificateVerify']['CRYPTO-Frame']).split(params['certificate_verify']['tail'])[0] # Compute the head (in the Record Layer) before the tail
     params['certificate_verify']['head_length'] = int( len(params['certificate_verify']['head']) / 2 )
 
     params['http3'] = {}
@@ -702,7 +705,7 @@ async def main(
                 perform_http_request(
                     client=client,
                     url=url,
-                    data=data.split()[i],
+                    data=data.split()[i] if args.data else None,
                     include=include,
                     output_dir=output_dir,
                     print_params=print_params,
@@ -851,7 +854,8 @@ if __name__ == "__main__":
             with open(args.session_ticket, "rb") as fp:
                 configuration.session_ticket = pickle.load(fp)
         except FileNotFoundError:
-            pass 
+            pass
+
 
     if uvloop is not None:
         uvloop.install()

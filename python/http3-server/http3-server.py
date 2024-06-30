@@ -100,11 +100,6 @@ class HttpRequestHandler:
         
         method 	= request['method']
         address = "http://localhost:31112" + request['path']
-        if method == 'POST':
-            body = message['body'].decode()
-            response = requests.post(address, data=body)
-        elif method == 'GET':
-            response = requests.get(address)
 
         print("\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
         print(f"Got HTTP/{request['http_version']} {method} Request from {request['client'][0]} to {request['path']}")
@@ -112,28 +107,54 @@ class HttpRequestHandler:
         for field, value in request.items():
             print(field, value)
         
-        if response.status_code == 200:
+        print('\n')
+        
+        try:
+            if method == 'POST':
+                body = message['body'].decode()
+                response = requests.post(address, data=body)
+            elif method == 'GET':
+                response = requests.get(address)
+
+            status_code = response.status_code
+            headers = response.headers
+            content = response.content if response.text else b""
+
+            if status_code == 200:
+                print("\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+                print_request(response.request)
+                print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+                print_response(response)
+                print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
+            else:
+                print("\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+                print(f"Error: {status_code}")
+                print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
+
+        except Exception as e:
             print("\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-            print_request(response.request)
-            print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-            print_response(response)
+            print(f"Exception: {e}")
             print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
 
-            self.connection.send_headers(
+            status_code = 404
+            headers = {}
+            content = b""
+
+        self.connection.send_headers(
+            stream_id=self.stream_id,
+            headers=[
+                (b":status", str(status_code).encode(UTF_8)),
+                (b"server", SERVER_NAME.encode(UTF_8)),
+                (b"date", formatdate(time.time(), usegmt=True).encode(UTF_8)),
+            ]
+            + [(str(k).lower().encode(UTF_8), str(v).lower().encode(UTF_8)) for k, v in headers.items()],
+        )
+        
+        self.connection.send_data(
                 stream_id=self.stream_id,
-                headers=[
-                    (b":status", str(response.status_code).encode(UTF_8)),
-                    (b"server", SERVER_NAME.encode(UTF_8)),
-                    (b"date", formatdate(time.time(), usegmt=True).encode(UTF_8)),
-                ]
-                + [(str(k).lower().encode(UTF_8), str(v).lower().encode(UTF_8)) for k, v in response.headers.items()],
+                data=content,
+                end_stream=True,
             )
-            
-            self.connection.send_data(
-                    stream_id=self.stream_id,
-                    data=response.content if response.text else b"",
-                    end_stream=True,
-                )
 
         # print("\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n")
         print("\n**************************************************************************************\n\n")
