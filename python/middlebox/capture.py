@@ -164,19 +164,24 @@ def process_with_pyshark(fileName):
     tls_session={"CH": False, "SH": False, "S_CS": False, "SF": False, "C_CS": False, "CF": False, "App": 0, "src": '', "dst": ''}
     transcript={"RandomID": '', "Cx":'', "Cy":'', "Sx":'', "Sy":'', "ch_sh":'', "ch_sh_len":'',"H2":'',"ServExt_ct":'', "ServExt_ct_EncExt":'',"ServExt_ct_Cert":'',"ServExt_ct_CertVerify":'',"ServExt_ct_SF":'', "ServExt_ct_tail":'', "appl_ct":'', "PacketNumber": '' }
     #pcap_data = pyshark.FileCapture(fileName)
-    capture=pyshark.LiveCapture(interface, bpf_filter="udp")
+    capture=pyshark.LiveCapture(interface, bpf_filter="udp", output_file="capture.pcapng")
 
     ch_sh = bytearray()
 
     #scan all packets in the capture
     #for packet in pcap_data:
     for packet in capture.sniff_continuously():
-        print(packet)
         
         if 'quic' in packet:
-            print("QUIC")
-            print(packet)
-            input()
+            # print(packet)
+
+            if hasattr(packet.quic, 'tls_handshake_type'):
+                
+                if packet.quic.tls_handshake_type == '1': # Client Hello
+                    print("Client Hello -", packet, '~'*100, '\n')
+
+                if packet.quic.tls_handshake_type == '2': # Server Hello
+                    print("Server Hello -", packet, '~'*100, '\n')
 
         # if 'tcp' in packet:
         #     stream_id=packet.tcp.stream
