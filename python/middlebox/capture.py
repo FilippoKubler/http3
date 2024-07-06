@@ -3,6 +3,7 @@ import sys, copy, math, pyshark
 from datetime import datetime
 import threading
 
+
 sessions = {}
 status={}
 tcp_streams={}
@@ -12,6 +13,22 @@ append=False
 interface=sys.argv[1] if len(sys.argv)>1 else 'lo'
 #interface='lo'
 now = str(datetime.timestamp(datetime.now())).split(".")[0]
+
+
+# ------------------------------------------------------------
+
+import binascii, operator
+from aioquic.tls import CipherSuite, cipher_suite_hash, hkdf_expand_label, hkdf_extract
+from aioquic.quic.quic_datagram_decomposer import quic_length_decoder, extract_tls13_handshake_type, quic_datagram_decomposer
+from Crypto.Cipher import AES
+
+INITIAL_SALT_VERSION_1  = binascii.unhexlify("38762cf7f55934b34d179ae6a4c80cadccbb7f0a")
+INITIAL_CIPHER_SUITE    = CipherSuite.AES_128_GCM_SHA256
+ALGORITHM               = cipher_suite_hash(INITIAL_CIPHER_SUITE)
+INITIAL                 = True
+
+
+
 
 def parseApplicationData(tls_data):
     #print(tls_data)
@@ -45,8 +62,8 @@ def parseApplicationData(tls_data):
         offset += record_length + 5
     return msgs        
         
-def toHex(payloadstr):
-    return(bytearray.fromhex(payloadstr.replace(':','')))
+def toHex(hex_string):
+    return(bytes.fromhex(hex_string.replace(':','')))
 
 def moreDataCondition(packet):
     #print(tcp_streams)
@@ -160,28 +177,162 @@ def call_java(name):
     return runProcess(("java -cp xjsnark_decompiled/backend_bin_mod/:xjsnark_decompiled/xjsnark_bin/ xjsnark.channel_openings.ChannelShortcut pub "+name).split())
 
 
-def process_with_pyshark(fileName):
-    tls_session={"CH": False, "SH": False, "S_CS": False, "SF": False, "C_CS": False, "CF": False, "App": 0, "src": '', "dst": ''}
-    transcript={"RandomID": '', "Cx":'', "Cy":'', "Sx":'', "Sy":'', "ch_sh":'', "ch_sh_len":'',"H2":'',"ServExt_ct":'', "ServExt_ct_EncExt":'',"ServExt_ct_Cert":'',"ServExt_ct_CertVerify":'',"ServExt_ct_SF":'', "ServExt_ct_tail":'', "appl_ct":'', "PacketNumber": '' }
-    #pcap_data = pyshark.FileCapture(fileName)
-    capture=pyshark.LiveCapture(interface, bpf_filter="udp", output_file="capture.pcapng")
 
-    ch_sh = bytearray()
+
+def derive_initial_secrets(packet):
+
+    dcid            = toHex(packet.quic.dcid)
+    initial_secret  = hkdf_extract(ALGORITHM, INITIAL_SALT_VERSION_1, dcid)
+
+    client_initial_secret   = hkdf_expand_label(ALGORITHM, initial_secret, b"client in", b"", ALGORITHM.digest_size)
+    server_initial_secret   = hkdf_expand_label(ALGORITHM, initial_secret, b"server in", b"", ALGORITHM.digest_size)
+
+    return client_initial_secret, server_initial_secret
+
+
+def decrypt_payload(packet, secret):
+    quic_raw_packet      = toHex(packet.udp.payload)
+    crypto_raw_packet    = toHex(packet.quic.payload)
+
+    # print('QUIC Packet:', quic_raw_packet.hex(), '\n')
+    # print('QUIC Payload:', crypto_raw_packet[:len(crypto_raw_packet)-16].hex(), crypto_raw_packet[-16:].hex(), '\n')
+
+    quic_hp         = hkdf_expand_label(ALGORITHM, secret, b"quic hp", b"", 16)
+
+    if packet.quic.header_form == '1': # Long Header
+        pn_offset   = 7 + int(packet.quic.dcil) + int(packet.quic.scil) + 2
+        if packet.quic.long_packet_type == '0': # Initial Packet
+            if packet.quic.token_length != '0':
+                pn_offset += int(packet.quic.token_length) + quic_length_decoder(crypto_raw_packet[pn_offset])
+            else:
+                pn_offset += 1
+    else: # Short Header
+        pn_offset   = 1 + int(packet.quic.dcil)
+
+    if packet.quic.packet_number_length == '1':
+        packet_number_length = 2
+
+    sample_offset   = pn_offset + packet_number_length
+
+    quic_header = quic_raw_packet[:sample_offset]
+    # print('QUIC Header:', quic_header.hex(), '\n') # ca 00000001 08 43c0b705938c1aff 08 a862bd5bf12a3a75 00 4496 5a34
+
+    ''' DA VERIFICARE -------------------------------------------------------------------------------------------------------------------------
+    sample_payload = quic_raw_packet[sample_offset:sample_offset+16]
+    print('Sample:', sample_payload.hex(), '\n')
+
+    header_encryptor = AES.new(quic_hp, AES.MODE_ECB)
+    mask = header_encryptor.encrypt(sample_payload)
+    print('MASK:', mask.hex(), '\n')
+
+    # c10000000108a7d73d003ff2bb7f0815c8b4101d3a26960044960000
+    # c40000000108a7d73d003ff2bb7f0815c8b4101d3a2696004496ef86
+
+    # First byte contains packet number length
+    print('First Byte:', ''.join(format(byte, '08b') for byte in bytes.fromhex(quic_raw_packet.hex()))[:8], '\n')
+    print('Mask:', ''.join(format(byte, '08b') for byte in bytes.fromhex(mask.hex()))[:8], '\n')
+    print('Mask & 0x0f:', ''.join(format(byte, '08b') for byte in bytes.fromhex(hex(mask[0] & 0x0f).replace('x','')))[:8], '\n')
+    first_byte = quic_raw_packet[0] ^ (mask[0] & 0x0f)
+    print('First Byte decoded:', ''.join(format(byte, '08b') for byte in bytes.fromhex(hex(first_byte).replace('0x','')))[:8], '\n')
+    pnl = (first_byte & 0x03) + 1
+    print('PNL:', ''.join(format(byte, '08b') for byte in bytes.fromhex(hex(pnl).replace('x','')))[:8], '\n')
+
+    encrypted_pn = quic_raw_packet[pn_offset:pn_offset+pnl]
+    print('Encrypted PN:', ''.join(format(byte, '08b') for byte in bytes.fromhex(encrypted_pn.hex()))[:16])
+    print('Related Mask:', ''.join(format(byte, '08b') for byte in bytes.fromhex(mask.hex()[2:pnl*2 + 2]))[:16])
+    pn = bytes(map(operator.xor, encrypted_pn, mask[1:pnl + 1]))
+    print('Decrypted PN:', ''.join(format(byte, '08b') for byte in bytes.fromhex(pn.hex()))[:16], '\n')
+    --------------------------------------------------------------------------------------------------------------------------------------- '''
+    
+    pn = bytes.fromhex(hex(int(packet.quic.packet_number)).replace('x','').ljust(packet_number_length*2, '0'))
+    # print('Packet Number:', pn.hex(), '\n')
+
+    pp_key = hkdf_expand_label(ALGORITHM, secret, b"quic key", b"", 16)
+    pre_iv = hkdf_expand_label(ALGORITHM, secret, b"quic iv", b"", 12)
+    iv = (int.from_bytes(pre_iv, "big") ^ int.from_bytes(pn, "big")).to_bytes(12, "big")
+
+    payload_encryptor = AES.new(pp_key, AES.MODE_GCM, iv)
+    payload_encryptor.update(quic_header[:pn_offset] + pn)
+    # payload = payload_encryptor.decrypt_and_verify(crypto_raw_packet[:len(crypto_raw_packet)-16], crypto_raw_packet[-16:])
+    payload = payload_encryptor.decrypt(crypto_raw_packet[:len(crypto_raw_packet)-16]) #Withoud AEAD Tag
+
+    return payload
+
+
+def process_with_pyshark(fileName):
+    global INITIAL
+
+    # tls_session={"CH": False, "SH": False, "S_CS": False, "SF": False, "C_CS": False, "CF": False, "App": 0, "src": '', "dst": ''}
+    # transcript={"RandomID": '', "Cx":'', "Cy":'', "Sx":'', "Sy":'', "ch_sh":'', "ch_sh_len":'',"H2":'',"ServExt_ct":'', "ServExt_ct_EncExt":'',"ServExt_ct_Cert":'',"ServExt_ct_CertVerify":'',"ServExt_ct_SF":'', "ServExt_ct_tail":'', "appl_ct":'', "PacketNumber": '' }
+    # ch_sh = bytearray()    
+
+    pcap_data = pyshark.FileCapture(fileName)
+    # pcap_data_raw = pyshark.FileCapture(fileName, use_json=True, include_raw=True)
+    # capture=pyshark.LiveCapture(interface, bpf_filter="udp", output_file="capture.pcapng")
+
 
     #scan all packets in the capture
-    #for packet in pcap_data:
-    for packet in capture.sniff_continuously():
+    for packet in pcap_data:
+    # for packet in capture.sniff_continuously():
         
         if 'quic' in packet:
             # print(packet)
 
             if hasattr(packet.quic, 'tls_handshake_type'):
+                print(packet.quic._all_fields, '\n\n')
                 
+                if INITIAL:
+                    client_initial_secret, server_initial_secret = derive_initial_secrets(packet)
+                    INITIAL = False
+
+
                 if packet.quic.tls_handshake_type == '1': # Client Hello
-                    print("Client Hello -", packet, '~'*100, '\n')
+                    # print("Client Hello -", packet, '~'*100, '\n')
+                    secret  = client_initial_secret
+                    peer    = ' CLIENT '
+
 
                 if packet.quic.tls_handshake_type == '2': # Server Hello
-                    print("Server Hello -", packet, '~'*100, '\n')
+                    # print("Server Hello -", packet, '~'*100, '\n')
+                    secret  = server_initial_secret
+                    peer    = ' SERVER '
+
+                
+                encrypted_payload = toHex(packet.quic.payload)[:int(len(toHex(packet.quic.payload)))-16]
+                print("Encrypted Payload -", toHex(packet.quic.payload)[:int(len(toHex(packet.quic.payload)))-16].hex(), '\n\n')
+                decrypted_payload = decrypt_payload(packet, secret)
+                print("Decrypted Payload -", decrypted_payload.hex(), '\n', '~'*100, '\n')
+
+                # ack, crypto, padding, stream, connection_close
+                quic_frames = []
+                if hasattr(packet.quic, 'ack_ack_delay'):
+                    quic_frames.append({'frame_type': 'ack'})
+                if hasattr(packet.quic, 'crypto_length'):
+                    quic_frames.append({'frame_type': 'crypto', 'length': int(packet.quic.crypto_length), 'offset': int(packet.quic.crypto_offset)})
+                if hasattr(packet.quic, 'padding_length'):
+                    quic_frames.append({'frame_type': 'padding'})
+
+                print(quic_frames, '\n\n')
+                input()
+
+                quic_datagram_decomposer(peer, quic_frames, decrypted_payload, encrypted_payload)
+
+
+                while True:
+                    match(decrypted_payload[:1].hex()):
+                        case '02': # ACK Frame
+                            break
+
+                        case '06': # CRYPTO Frame
+                            break
+
+                        case '00': # PADDING Frame
+                            break
+                        
+                        case '0b': # STREAM Frame
+                            break
+                        
+                # extract_tls13_handshake_type(packet)
 
         # if 'tcp' in packet:
         #     stream_id=packet.tcp.stream
@@ -340,9 +491,8 @@ def process_with_pyshark(fileName):
 import threading
 from runprocess import runProcess
 
-print("HELO")
-pcap_file = "serverone_new.pcapng" #when capturing remember to BPF filter by destination ip and port!
+print("STARTING CAPTURE . . .\n\n")
+pcap_file = "quic_exchange.pcap" # when capturing remember to BPF filter by destination ip and port!
 capturer = threading.Thread(target=process_with_pyshark, args=(pcap_file,))
 threads.append(capturer)
 capturer.start()
-    
