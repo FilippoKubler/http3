@@ -274,63 +274,67 @@ def process_with_pyshark(fileName):
     #scan all packets in the capture
     for packet in pcap_data:
     # for packet in capture.sniff_continuously():
-        
-        if 'quic' in packet:
-            # print(packet)
+        for layer in packet.layers:
 
-            if hasattr(packet.quic, 'tls_handshake_type'):
-                print(packet.quic._all_fields, '\n\n')
+            if hasattr(layer, 'packet_length'):
                 
-                if INITIAL:
-                    client_initial_secret, server_initial_secret = derive_initial_secrets(packet)
-                    INITIAL = False
+                print(layer._all_fields, '\n\n')
+
+                if hasattr(layer, 'tls_handshake_type'):
+                    
+                    if INITIAL:
+                        client_initial_secret, server_initial_secret = derive_initial_secrets(packet)
+                        INITIAL = False
 
 
-                if packet.quic.tls_handshake_type == '1': # Client Hello
-                    # print("Client Hello -", packet, '~'*100, '\n')
-                    secret  = client_initial_secret
-                    peer    = ' CLIENT '
+                    if layer.tls_handshake_type == '1': # Client Hello
+                        # print("Client Hello -", packet, '~'*100, '\n')
+                        secret  = client_initial_secret
+                        peer    = ' CLIENT '
 
 
-                if packet.quic.tls_handshake_type == '2': # Server Hello
-                    # print("Server Hello -", packet, '~'*100, '\n')
-                    secret  = server_initial_secret
-                    peer    = ' SERVER '
+                    if layer.tls_handshake_type == '2': # Server Hello
+                        # print("Server Hello -", packet, '~'*100, '\n')
+                        secret  = server_initial_secret
+                        peer    = ' SERVER '
 
-                
-                encrypted_payload = toHex(packet.quic.payload)[:int(len(toHex(packet.quic.payload)))-16]
-                print("Encrypted Payload -", toHex(packet.quic.payload)[:int(len(toHex(packet.quic.payload)))-16].hex(), '\n\n')
-                decrypted_payload = decrypt_payload(packet, secret)
-                print("Decrypted Payload -", decrypted_payload.hex(), '\n', '~'*100, '\n')
+                    
+                    encrypted_payload = toHex(layer.payload)[:int(len(toHex(layer.payload)))-16]
+                    # print("Encrypted Payload -", toHex(layer.payload)[:int(len(toHex(layer.payload)))-16].hex(), '\n\n')
+                    decrypted_payload = decrypt_payload(packet, secret)
+                    # print("Decrypted Payload -", decrypted_payload.hex(), '\n', '~'*100, '\n')
 
-                # ack, crypto, padding, stream, connection_close
-                quic_frames = []
-                if hasattr(packet.quic, 'ack_ack_delay'):
-                    quic_frames.append({'frame_type': 'ack'})
-                if hasattr(packet.quic, 'crypto_length'):
-                    quic_frames.append({'frame_type': 'crypto', 'length': int(packet.quic.crypto_length), 'offset': int(packet.quic.crypto_offset)})
-                if hasattr(packet.quic, 'padding_length'):
-                    quic_frames.append({'frame_type': 'padding'})
+                    # ack, crypto, padding, stream, connection_close
+                    quic_frames = []
+                    if hasattr(layer, 'ack_ack_delay'):
+                        quic_frames.append({'frame_type': 'ack'})
+                    if hasattr(layer, 'crypto_length'):
+                        quic_frames.append({'frame_type': 'crypto', 'length': int(layer.crypto_length), 'offset': int(layer.crypto_offset)})
+                    if hasattr(layer, 'padding_length'):
+                        quic_frames.append({'frame_type': 'padding'})
 
-                print(quic_frames, '\n\n')
-                input()
+                    print(quic_frames)
 
-                quic_datagram_decomposer(peer, quic_frames, decrypted_payload, encrypted_payload)
+                    packets_transcript_json = quic_datagram_decomposer(peer, quic_frames, decrypted_payload, encrypted_payload)
+                    print(packets_transcript_json, '\n\n')
+
+    
+        print("\n********************************************************************************************************************************************************************************************\n\n\n")
 
 
-                while True:
-                    match(decrypted_payload[:1].hex()):
-                        case '02': # ACK Frame
-                            break
+                # while True:
+                #     match(decrypted_payload[:1].hex()):
+                #         case '02': # ACK Frame
+                #             break
 
-                        case '06': # CRYPTO Frame
-                            break
+                #         case '06': # CRYPTO Frame
+                #             break
 
-                        case '00': # PADDING Frame
-                            break
+                #         case '00': # PADDING Frame
+                #             break
                         
-                        case '0b': # STREAM Frame
-                            break
+                #         case '0b': # STREAM Frame
+                #             break
                         
                 # extract_tls13_handshake_type(packet)
 
