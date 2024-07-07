@@ -26,6 +26,7 @@ INITIAL_SALT_VERSION_1  = binascii.unhexlify("38762cf7f55934b34d179ae6a4c80cadcc
 INITIAL_CIPHER_SUITE    = CipherSuite.AES_128_GCM_SHA256
 ALGORITHM               = cipher_suite_hash(INITIAL_CIPHER_SUITE)
 INITIAL                 = True
+PACKET_NUMBER_LENGTH    = 0
 
 
 
@@ -191,6 +192,8 @@ def derive_initial_secrets(packet):
 
 
 def decrypt_payload(packet, secret):
+    global PACKET_NUMBER_LENGTH
+
     quic_raw_packet      = toHex(packet.udp.payload)
     crypto_raw_packet    = toHex(packet.quic.payload)
 
@@ -210,9 +213,9 @@ def decrypt_payload(packet, secret):
         pn_offset   = 1 + int(packet.quic.dcil)
 
     if packet.quic.packet_number_length == '1':
-        packet_number_length = 2
+        PACKET_NUMBER_LENGTH = 2
 
-    sample_offset   = pn_offset + packet_number_length
+    sample_offset   = pn_offset + PACKET_NUMBER_LENGTH
 
     quic_header = quic_raw_packet[:sample_offset]
     # print('QUIC Header:', quic_header.hex(), '\n') # ca 00000001 08 43c0b705938c1aff 08 a862bd5bf12a3a75 00 4496 5a34
@@ -244,7 +247,7 @@ def decrypt_payload(packet, secret):
     print('Decrypted PN:', ''.join(format(byte, '08b') for byte in bytes.fromhex(pn.hex()))[:16], '\n')
     --------------------------------------------------------------------------------------------------------------------------------------- '''
     
-    pn = bytes.fromhex(hex(int(packet.quic.packet_number)).replace('x','').ljust(packet_number_length*2, '0'))
+    pn = bytes.fromhex(hex(int(packet.quic.packet_number)).replace('x','').ljust(PACKET_NUMBER_LENGTH*2, '0'))
     # print('Packet Number:', pn.hex(), '\n')
 
     pp_key = hkdf_expand_label(ALGORITHM, secret, b"quic key", b"", 16)
@@ -260,7 +263,7 @@ def decrypt_payload(packet, secret):
 
 
 def process_with_pyshark(fileName):
-    global INITIAL
+    global INITIAL, PACKET_NUMBER_LENGTH
 
     # tls_session={"CH": False, "SH": False, "S_CS": False, "SF": False, "C_CS": False, "CF": False, "App": 0, "src": '', "dst": ''}
     # transcript={"RandomID": '', "Cx":'', "Cy":'', "Sx":'', "Sy":'', "ch_sh":'', "ch_sh_len":'',"H2":'',"ServExt_ct":'', "ServExt_ct_EncExt":'',"ServExt_ct_Cert":'',"ServExt_ct_CertVerify":'',"ServExt_ct_SF":'', "ServExt_ct_tail":'', "appl_ct":'', "PacketNumber": '' }
@@ -278,65 +281,65 @@ def process_with_pyshark(fileName):
 
             if hasattr(layer, 'packet_length'):
                 
-                print(layer._all_fields, '\n\n')
+                # print(layer._all_fields, '\n\n')
 
-                if hasattr(layer, 'tls_handshake_type'):
+                if hasattr(layer, 'long_packet_type'):
                     
-                    if INITIAL:
-                        client_initial_secret, server_initial_secret = derive_initial_secrets(packet)
-                        INITIAL = False
+                    match(layer.long_packet_type):
+
+                        case '0': # Initial Packet
+                        
+                            if hasattr(layer, 'tls_handshake_type'):
+                            
+                                if INITIAL:
+                                    client_initial_secret, server_initial_secret = derive_initial_secrets(packet)
+                                    INITIAL = False
 
 
-                    if layer.tls_handshake_type == '1': # Client Hello
-                        # print("Client Hello -", packet, '~'*100, '\n')
-                        secret  = client_initial_secret
-                        peer    = ' CLIENT '
+                                if layer.tls_handshake_type == '1': # Client Hello
+                                    # print("Client Hello -", packet, '~'*100, '\n')
+                                    secret  = client_initial_secret
+                                    peer    = ' CLIENT '
 
 
-                    if layer.tls_handshake_type == '2': # Server Hello
-                        # print("Server Hello -", packet, '~'*100, '\n')
-                        secret  = server_initial_secret
-                        peer    = ' SERVER '
+                                if layer.tls_handshake_type == '2': # Server Hello
+                                    # print("Server Hello -", packet, '~'*100, '\n')
+                                    secret  = server_initial_secret
+                                    peer    = ' SERVER '
 
-                    
-                    encrypted_payload = toHex(layer.payload)[:int(len(toHex(layer.payload)))-16]
-                    # print("Encrypted Payload -", toHex(layer.payload)[:int(len(toHex(layer.payload)))-16].hex(), '\n\n')
-                    decrypted_payload = decrypt_payload(packet, secret)
-                    # print("Decrypted Payload -", decrypted_payload.hex(), '\n', '~'*100, '\n')
+                                
+                                encrypted_payload = toHex(layer.payload)[:int(len(toHex(layer.payload)))-16]
+                                # print("Encrypted Payload -", toHex(layer.payload)[:int(len(toHex(layer.payload)))-16].hex(), '\n\n')
+                                decrypted_payload = decrypt_payload(packet, secret)
+                                # print("Decrypted Payload -", decrypted_payload.hex(), '\n', '~'*100, '\n')
 
-                    # ack, crypto, padding, stream, connection_close
-                    quic_frames = []
-                    if hasattr(layer, 'ack_ack_delay'):
-                        quic_frames.append({'frame_type': 'ack'})
-                    if hasattr(layer, 'crypto_length'):
-                        quic_frames.append({'frame_type': 'crypto', 'length': int(layer.crypto_length), 'offset': int(layer.crypto_offset)})
-                    if hasattr(layer, 'padding_length'):
-                        quic_frames.append({'frame_type': 'padding'})
+                                # ack, crypto, padding, stream, connection_close
+                                quic_frames = []
+                                if hasattr(layer, 'ack_ack_delay'):
+                                    quic_frames.append({'frame_type': 'ack'})
+                                if hasattr(layer, 'crypto_length'):
+                                    quic_frames.append({'frame_type': 'crypto', 'length': int(layer.crypto_length), 'offset': int(layer.crypto_offset)})
+                                if hasattr(layer, 'padding_length'):
+                                    quic_frames.append({'frame_type': 'padding'})
 
-                    print(quic_frames)
+                                print(quic_frames)
 
-                    packets_transcript_json = quic_datagram_decomposer(peer, quic_frames, decrypted_payload, encrypted_payload)
-                    print(packets_transcript_json, '\n\n')
+                                packets_transcript_json = quic_datagram_decomposer(peer, quic_frames, decrypted_payload, encrypted_payload)
+                                print(packets_transcript_json, '\n\n')
+
+                        case '2': # Handshake Packet
+                            print(layer._all_fields, '\n\n')
+                            
+                            encrypted_payload = layer.payload if hasattr(layer, 'payload') else layer.remaining_payload
+                            encrypted_payload = toHex(encrypted_payload)[PACKET_NUMBER_LENGTH:int(len(toHex(encrypted_payload)))-16]
+
+                            print("Handshake Packet -", encrypted_payload.hex(), '\n\n')
+
 
     
         print("\n********************************************************************************************************************************************************************************************\n\n\n")
 
 
-                # while True:
-                #     match(decrypted_payload[:1].hex()):
-                #         case '02': # ACK Frame
-                #             break
-
-                #         case '06': # CRYPTO Frame
-                #             break
-
-                #         case '00': # PADDING Frame
-                #             break
-                        
-                #         case '0b': # STREAM Frame
-                #             break
-                        
-                # extract_tls13_handshake_type(packet)
 
         # if 'tcp' in packet:
         #     stream_id=packet.tcp.stream
