@@ -439,7 +439,9 @@ async def perform_http_request(
 
     params = {}
 
+
     # Plaintext
+
     params['client_hello'] = { 
         'plaintext': client._quic.packets_transcript_json['CLIENT-ClientHello']['plaintext'],
         'ciphertext': client._quic.packets_transcript_json['CLIENT-ClientHello']['ciphertext'],
@@ -567,22 +569,7 @@ async def perform_http_request(
         f.write(f'Server HS Secret: {client._quic.tls._server_handshake_secret}\n')
         f.write(f'Client AP Secret: {client._quic.tls._client_application_secret}\n')
 
-    # print(client._quic.packets_transcript_json["CLIENT-HTTP3 REQUEST"]["plaintext"])
-    # frame_data = bytes.fromhex(client._quic.packets_transcript_json["CLIENT-HTTP3 REQUEST"]["plaintext"][4:102])
-    # print(frame_data.hex())
-    # decoder, headers = client._http._decoder.feed_header(0, frame_data)
-    # print('Decoder:', decoder, decoder.hex())
-    # print('Headers:', headers)
-    # print()
-
-    # encoder, frame_data = client._http._encoder.encode(0, [(b':path', b'/function/figlet')])
-    # print('Encoder:', encoder, encoder.hex())
-    # print('Frame Data:', frame_data, frame_data.hex())
-
-
     subprocess.run(('java -cp ./xjsnark_decompiled/backend_bin_mod/:./xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.HTTP3_String run params.txt ' + str(params['http3']['request']['huffman_path_encoding']) + ' pippo 1').split())
-
-    # java -cp ./xjsnark_decompiled/backend_bin_mod/:./xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.HTTP3_String run files/transcript_http3_test.txt 625b6a224c7a9894d35054ff pippo 1
 
     logger.info(
         "Response received for %s %s : %d bytes in %.1f s (%.3f Mbps)"

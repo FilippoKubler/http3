@@ -1,4 +1,3 @@
-from hashlib import sha256
 import sys, copy, math, pyshark
 from datetime import datetime
 import threading
@@ -17,7 +16,7 @@ now = str(datetime.timestamp(datetime.now())).split(".")[0]
 
 # ------------------------------------------------------------
 
-import binascii, operator
+import binascii, hashlib, json
 from aioquic.tls import CipherSuite, cipher_suite_hash, hkdf_expand_label, hkdf_extract
 from aioquic.quic.quic_datagram_decomposer import quic_length_decoder, extract_tls13_handshake_type, quic_datagram_decomposer
 from Crypto.Cipher import AES
@@ -25,8 +24,9 @@ from Crypto.Cipher import AES
 INITIAL_SALT_VERSION_1  = binascii.unhexlify("38762cf7f55934b34d179ae6a4c80cadccbb7f0a")
 INITIAL_CIPHER_SUITE    = CipherSuite.AES_128_GCM_SHA256
 ALGORITHM               = cipher_suite_hash(INITIAL_CIPHER_SUITE)
-INITIAL                 = True
 PACKET_NUMBER_LENGTH    = 0
+
+# ------------------------------------------------------------
 
 
 
@@ -63,9 +63,6 @@ def parseApplicationData(tls_data):
         offset += record_length + 5
     return msgs        
         
-def toHex(hex_string):
-    return(bytes.fromhex(hex_string.replace(':','')))
-
 def moreDataCondition(packet):
     #print(tcp_streams)
     if(len(tcp_streams[packet.tcp.stream])>1 
@@ -91,8 +88,8 @@ def printTranscript(transcripts):
 
 def elaborateAppData(packet,stream_id):
     if status[packet.tcp.stream]["S_CS"] and not status[packet.tcp.stream]["SF"]: #it's still HANDSHAKE
-        if (len(toHex(packet.tls.app_data)) < 60): #set this to a reasonable lowerbound that includes Mandatory Extensions, min length Certificate + Verify and Finished (53)
-            msgs=parseApplicationData(toHex(packet.tcp.payload))
+        if (len(toBytes(packet.tls.app_data)) < 60): #set this to a reasonable lowerbound that includes Mandatory Extensions, min length Certificate + Verify and Finished (53)
+            msgs=parseApplicationData(toBytes(packet.tcp.payload))
             if len(msgs)==6:
                 status[packet.tcp.stream]["SF"] = True
                 status[packet.tcp.stream]["src"]=packet.tcp.srcport
@@ -115,7 +112,7 @@ def elaborateAppData(packet,stream_id):
             print("Tail: ",len(transcripts[packet.tcp.stream]['ServExt_ct_tail']))
         else: #there is only one appData record layer
             print("Server Finished")
-            handshake_ct=toHex(packet.tls.app_data)
+            handshake_ct=toBytes(packet.tls.app_data)
             #assume SF is inside the big packet
             status[packet.tcp.stream]["SF"] = True
             status[packet.tcp.stream]["src"]=packet.tcp.srcport
@@ -138,10 +135,9 @@ def elaborateAppData(packet,stream_id):
         print(packet.tls.app_data)
         print("CIAO")
 
-
 def print_transcript(transcript, stream_id):
     original_stdout = sys.stdout
-    random_id = toHex(transcript['RandomID']).hex()
+    random_id = toBytes(transcript['RandomID']).hex()
     name = "transcript_"+random_id+str(transcript['PacketNumber'])+".txt" #OR we could use the unique stream_id...
     
     f = open("files/"+name, "w")
@@ -172,17 +168,30 @@ def print_transcript(transcript, stream_id):
     return name
 
 
-def call_java(name):
-#    for line in runProcess(("java -cp xjsnark_decompiled/backend_bin_mod/:xjsnark_decompiled/xjsnark_bin/ xjsnark.channel_openings.ChannelShortcut pub "+name).split()):
-#        print(line)
-    return runProcess(("java -cp xjsnark_decompiled/backend_bin_mod/:xjsnark_decompiled/xjsnark_bin/ xjsnark.channel_openings.ChannelShortcut pub "+name).split())
 
 
+def toBytes(hex_string):
+    return(bytes.fromhex(hex_string.replace(':','')))
+
+
+def get_tail_minus_36(transcript: str) -> str:
+
+    output              = ''
+
+    length              = int( len(transcript) / 2 )
+    num_whole_blocks    = int( ( length - 36 ) / 64 )
+    tail_len            = length - num_whole_blocks * 64
+
+    for i in range(0, tail_len):
+        j = num_whole_blocks * 64 + i
+        output += transcript[2*j : (2*j) + 2]
+
+    return output
 
 
 def derive_initial_secrets(packet):
 
-    dcid            = toHex(packet.quic.dcid)
+    dcid            = toBytes(packet.quic.dcid)
     initial_secret  = hkdf_extract(ALGORITHM, INITIAL_SALT_VERSION_1, dcid)
 
     client_initial_secret   = hkdf_expand_label(ALGORITHM, initial_secret, b"client in", b"", ALGORITHM.digest_size)
@@ -194,8 +203,8 @@ def derive_initial_secrets(packet):
 def decrypt_payload(packet, secret):
     global PACKET_NUMBER_LENGTH
 
-    quic_raw_packet      = toHex(packet.udp.payload)
-    crypto_raw_packet    = toHex(packet.quic.payload)
+    quic_raw_packet      = toBytes(packet.udp.payload)
+    crypto_raw_packet    = toBytes(packet.quic.payload)
 
     # print('QUIC Packet:', quic_raw_packet.hex(), '\n')
     # print('QUIC Payload:', crypto_raw_packet[:len(crypto_raw_packet)-16].hex(), crypto_raw_packet[-16:].hex(), '\n')
@@ -262,12 +271,76 @@ def decrypt_payload(packet, secret):
     return payload
 
 
+def prepare_parameters(packets_transcript_json):
+    
+    params = {}
+
+    # Plaintext
+    params['client_hello'] = { 
+        'plaintext': packets_transcript_json['CLIENT-ClientHello']['plaintext'],
+        'ciphertext': packets_transcript_json['CLIENT-ClientHello']['ciphertext'],
+        'length': packets_transcript_json['CLIENT-ClientHello']['length']
+    }
+
+    params['server_hello'] = { 
+        'plaintext': packets_transcript_json['SERVER-ServerHello']['plaintext'],
+        'ciphertext': packets_transcript_json['SERVER-ServerHello']['ciphertext'],
+        'length': packets_transcript_json['SERVER-ServerHello']['length']
+    }
+
+    params['client_server_hello'] = { 
+        'transcript': params['client_hello']['plaintext'] + params['server_hello']['plaintext'], # ch_sh = pt2_line
+        'length': params['client_hello']['length'] + params['server_hello']['length'],
+    }
+    params['client_server_hello']['hash'] = hashlib.sha256(bytes.fromhex(params['client_server_hello']['transcript'])).digest().hex() # H2 
+    
+    # Ciphertext
+    params['extensions_certificate_certificatevrfy_serverfinished'] = { 
+        'transcript': ''.join(elem['ciphertext'] for elem in packets_transcript_json['HANDSHAKE-PACKETS']), # ct3_line
+        'length': int(len(''.join(elem['ciphertext'] for elem in packets_transcript_json['HANDSHAKE-PACKETS'])) / 2)
+    }
+
+    params['handshake'] = {
+        'transcript': params['client_server_hello']['transcript'] + params['extensions_certificate_certificatevrfy_serverfinished']['transcript'],
+        'length': params['client_server_hello']['length'] + params['extensions_certificate_certificatevrfy_serverfinished']['length'], # TR3_len
+    }
+
+    handshake_tail = get_tail_minus_36(params['handshake']['transcript'])
+    params['handshake']['tail'] = handshake_tail[0 : int(len(handshake_tail) - 72)] # 28 byte per completare il blocco con i primi 4 bytes del Server Finished (sha256)
+    params['handshake']['tail_length'] = int( len(params['handshake']['tail']) / 2 )
+
+
+    with open('params.json', 'w') as f:
+        json.dump(params, f, indent=2)
+
+
+    with open('params.txt', 'w') as f:
+        f.write('0'*32                                                                          + '\n') # HS
+        f.write(params['client_server_hello']['hash']                                           + '\n') # H_2
+        f.write(params['client_server_hello']['transcript']                                     + '\n') # PT_2
+        f.write('0'*32                                                                          + '\n') # Certificate Verify
+        f.write(params['handshake']['tail']                                                     + '\n') # Certificate Verify Tail
+        f.write('0'*32                                                                          + '\n') # Server Finished
+        f.write(params['extensions_certificate_certificatevrfy_serverfinished']['transcript']   + '\n') # CT_3
+        #f.write(params['http3']['request']['ciphertext']                                        + '\n') # HTTP3 Request
+        f.write('0'*32                                                                          + '\n') # H_state_tr7
+        f.write(params['handshake']['transcript']                                               + '\n') # TR_3
+        f.write('0'*32                                                                          + '\n') # Certificate Verify Tail Head Length
+        f.write('0'*32                                                                          + '\n') # HTTP3 Request Head Length
+        f.write('0'*32                                                                          + '\n') # Path poisition in Request
+
+
+
 def process_with_pyshark(fileName):
-    global INITIAL, PACKET_NUMBER_LENGTH
+    global PACKET_NUMBER_LENGTH
 
     # tls_session={"CH": False, "SH": False, "S_CS": False, "SF": False, "C_CS": False, "CF": False, "App": 0, "src": '', "dst": ''}
     # transcript={"RandomID": '', "Cx":'', "Cy":'', "Sx":'', "Sy":'', "ch_sh":'', "ch_sh_len":'',"H2":'',"ServExt_ct":'', "ServExt_ct_EncExt":'',"ServExt_ct_Cert":'',"ServExt_ct_CertVerify":'',"ServExt_ct_SF":'', "ServExt_ct_tail":'', "appl_ct":'', "PacketNumber": '' }
-    # ch_sh = bytearray()    
+    # ch_sh = bytearray()
+    
+
+    server_connection_id    = b''
+    initial                 = True
 
     pcap_data = pyshark.FileCapture(fileName)
     # pcap_data_raw = pyshark.FileCapture(fileName, use_json=True, include_raw=True)
@@ -291,25 +364,26 @@ def process_with_pyshark(fileName):
                         
                             if hasattr(layer, 'tls_handshake_type'):
                             
-                                if INITIAL:
+                                if initial:
                                     client_initial_secret, server_initial_secret = derive_initial_secrets(packet)
-                                    INITIAL = False
+                                    initial = False
 
 
                                 if layer.tls_handshake_type == '1': # Client Hello
                                     # print("Client Hello -", packet, '~'*100, '\n')
-                                    secret  = client_initial_secret
-                                    peer    = ' CLIENT '
+                                    secret                  = client_initial_secret
+                                    peer                    = ' CLIENT '
 
 
                                 if layer.tls_handshake_type == '2': # Server Hello
                                     # print("Server Hello -", packet, '~'*100, '\n')
-                                    secret  = server_initial_secret
-                                    peer    = ' SERVER '
+                                    secret                  = server_initial_secret
+                                    peer                    = ' SERVER '
+                                    server_connection_id    = toBytes(packet.quic.scid)
 
                                 
-                                encrypted_payload = toHex(layer.payload)[:int(len(toHex(layer.payload)))-16]
-                                # print("Encrypted Payload -", toHex(layer.payload)[:int(len(toHex(layer.payload)))-16].hex(), '\n\n')
+                                encrypted_payload = toBytes(layer.payload)[:int(len(toBytes(layer.payload)))-16]
+                                # print("Encrypted Payload -", toBytes(layer.payload)[:int(len(toBytes(layer.payload)))-16].hex(), '\n\n')
                                 decrypted_payload = decrypt_payload(packet, secret)
                                 # print("Decrypted Payload -", decrypted_payload.hex(), '\n', '~'*100, '\n')
 
@@ -325,22 +399,35 @@ def process_with_pyshark(fileName):
                                 print(quic_frames)
 
                                 packets_transcript_json = quic_datagram_decomposer(peer, quic_frames, decrypted_payload, encrypted_payload)
-                                print(packets_transcript_json, '\n\n')
 
                         case '2': # Handshake Packet
                             print(layer._all_fields, '\n\n')
-                            
-                            encrypted_payload = layer.payload if hasattr(layer, 'payload') else layer.remaining_payload
-                            encrypted_payload = toHex(encrypted_payload)[PACKET_NUMBER_LENGTH:int(len(toHex(encrypted_payload)))-16]
 
-                            print("Handshake Packet -", encrypted_payload.hex(), '\n\n')
+                            if toBytes(packet.quic.scid).hex() == server_connection_id.hex():
+                            
+                                encrypted_payload = layer.payload if hasattr(layer, 'payload') else layer.remaining_payload
+                                encrypted_payload = toBytes(encrypted_payload)[PACKET_NUMBER_LENGTH:int(len(toBytes(encrypted_payload)))-16]
+
+                                print("Handshake Packet -", encrypted_payload.hex(), '\n\n')
+                                
+                                try:
+                                    packets_transcript_json['HANDSHAKE-PACKETS'].append({
+                                        'length': len(encrypted_payload),
+                                        'ciphertext': encrypted_payload.hex()
+                                    })
+                                except:
+                                    packets_transcript_json['HANDSHAKE-PACKETS'] = []
+                                    packets_transcript_json['HANDSHAKE-PACKETS'].append({
+                                        'length': len(encrypted_payload),
+                                        'ciphertext': encrypted_payload.hex()
+                                    })
 
 
     
-        print("\n********************************************************************************************************************************************************************************************\n\n\n")
+        print("\n*****************************************************************************************************************************************************************************\n\n\n")
 
-
-
+    prepare_parameters(packets_transcript_json) # capire come rimuovere HEADER Crypto dai pacchetti di handsahke
+ 
         # if 'tcp' in packet:
         #     stream_id=packet.tcp.stream
         #     if stream_id not in tcp_streams:
