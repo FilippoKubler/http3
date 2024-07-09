@@ -276,6 +276,7 @@ def prepare_parameters(packets_transcript_json):
     params = {}
 
     # Plaintext
+
     params['client_hello'] = { 
         'plaintext': packets_transcript_json['CLIENT-ClientHello']['plaintext'],
         'ciphertext': packets_transcript_json['CLIENT-ClientHello']['ciphertext'],
@@ -294,7 +295,13 @@ def prepare_parameters(packets_transcript_json):
     }
     params['client_server_hello']['hash'] = hashlib.sha256(bytes.fromhex(params['client_server_hello']['transcript'])).digest().hex() # H2 
     
+
     # Ciphertext
+
+    params['server_finished'] = { 
+        'ciphertext': packets_transcript_json['HANDSHAKE-PACKETS'][-1]['ciphertext'][len(packets_transcript_json['HANDSHAKE-PACKETS'][-1]['ciphertext'])-72:]
+    }
+
     params['extensions_certificate_certificatevrfy_serverfinished'] = { 
         'transcript': ''.join(elem['ciphertext'] for elem in packets_transcript_json['HANDSHAKE-PACKETS']), # ct3_line
         'length': int(len(''.join(elem['ciphertext'] for elem in packets_transcript_json['HANDSHAKE-PACKETS'])) / 2)
@@ -308,6 +315,8 @@ def prepare_parameters(packets_transcript_json):
     handshake_tail = get_tail_minus_36(params['handshake']['transcript'])
     params['handshake']['tail'] = handshake_tail[0 : int(len(handshake_tail) - 72)] # 28 byte per completare il blocco con i primi 4 bytes del Server Finished (sha256)
     params['handshake']['tail_length'] = int( len(params['handshake']['tail']) / 2 )
+    params['handshake']['tail_head'] = str(packets_transcript_json['HANDSHAKE-PACKETS'][-1]['ciphertext']).split(params['handshake']['tail'])[0] # Compute the head (in the Record Layer) before the tail
+    params['handshake']['tail_head_length'] = int( len(params['handshake']['tail_head']) / 2 )
 
 
     with open('params.json', 'w') as f:
@@ -315,19 +324,19 @@ def prepare_parameters(packets_transcript_json):
 
 
     with open('params.txt', 'w') as f:
-        f.write('0'*32                                                                          + '\n') # HS
+        f.write('0'*32                                                                          + '\n') # HS (Witness)
         f.write(params['client_server_hello']['hash']                                           + '\n') # H_2
         f.write(params['client_server_hello']['transcript']                                     + '\n') # PT_2
         f.write('0'*32                                                                          + '\n') # Certificate Verify
         f.write(params['handshake']['tail']                                                     + '\n') # Certificate Verify Tail
-        f.write('0'*32                                                                          + '\n') # Server Finished
+        f.write(params['server_finished']['ciphertext']                                         + '\n') # Server Finished
         f.write(params['extensions_certificate_certificatevrfy_serverfinished']['transcript']   + '\n') # CT_3
         #f.write(params['http3']['request']['ciphertext']                                        + '\n') # HTTP3 Request
-        f.write('0'*32                                                                          + '\n') # H_state_tr7
+        f.write('0'*32                                                                          + '\n') # H_state_tr7 (Witness)
         f.write(params['handshake']['transcript']                                               + '\n') # TR_3
-        f.write('0'*32                                                                          + '\n') # Certificate Verify Tail Head Length
-        f.write('0'*32                                                                          + '\n') # HTTP3 Request Head Length
-        f.write('0'*32                                                                          + '\n') # Path poisition in Request
+        f.write(str(params['handshake']['tail_head_length'])                                    + '\n') # Certificate Verify Tail Head Length
+        f.write('0'*32                                                                          + '\n') # HTTP3 Request Head Length (Witness)
+        f.write('0'*32                                                                          + '\n') # Path poisition in Request (Witness)
 
 
 
@@ -354,7 +363,7 @@ def process_with_pyshark(fileName):
 
             if hasattr(layer, 'packet_length'):
                 
-                # print(layer._all_fields, '\n\n')
+                print(layer._all_fields, '\n\n')
 
                 if hasattr(layer, 'long_packet_type'):
                     
@@ -401,7 +410,7 @@ def process_with_pyshark(fileName):
                                 packets_transcript_json = quic_datagram_decomposer(peer, quic_frames, decrypted_payload, encrypted_payload)
 
                         case '2': # Handshake Packet
-                            print(layer._all_fields, '\n\n')
+                            # print(layer._all_fields, '\n\n')
 
                             if toBytes(packet.quic.scid).hex() == server_connection_id.hex():
                             
@@ -426,7 +435,7 @@ def process_with_pyshark(fileName):
     
         print("\n*****************************************************************************************************************************************************************************\n\n\n")
 
-    prepare_parameters(packets_transcript_json) # capire come rimuovere HEADER Crypto dai pacchetti di handsahke
+    prepare_parameters(packets_transcript_json) # capire come rimuovere HEADER Crypto dai pacchetti di Handsahke
  
         # if 'tcp' in packet:
         #     stream_id=packet.tcp.stream
