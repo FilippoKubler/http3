@@ -603,32 +603,33 @@ public class LabelExtraction {
   }
 
   // This function verifies that the 8 chars preceding the first_crlf_index in http_msg_ram are 'HTTP/1.1'
-  private static void match_http(SmartMemory<UnsignedInteger> http_msg_ram, UnsignedInteger first_char_index, UnsignedInteger[] allowed_url, UnsignedInteger url_len) {
+  private static void match_http(SmartMemory<UnsignedInteger> http_msg_ram, int first_char_index, UnsignedInteger[] allowed_url, UnsignedInteger url_len) {
 
     // Perform the verification using the input RAM 
     // We require a RAM as we access indices based on the first_crlf_index, which is variable 
     // and not known at the creation of the circuit. 
     // TODO: how to make a for with a variable end: PASS THE LENGTH? 
-    CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(first_char_index, "first_char_index");
 
     for (int i = 0; i < HTTP3_String.MAX_URL_LEN; i++) {
       {
-        Bit bit_a0h0uc = UnsignedInteger.instantiateFrom(8, i).isLessThan(url_len).copy();
-        boolean c_a0h0uc = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0h0uc);
-        if (c_a0h0uc) {
-          if (bit_a0h0uc.getConstantValue()) {
-            CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(http_msg_ram.read(first_char_index.add(UnsignedInteger.instantiateFrom(8, i))), "http_msg_ram");
+        Bit bit_a0g0uc = UnsignedInteger.instantiateFrom(8, i).isLessThan(url_len).copy();
+        boolean c_a0g0uc = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0g0uc);
+        if (c_a0g0uc) {
+          if (bit_a0g0uc.getConstantValue()) {
+            // Check if first 2 bytes after Type (01, 1 byte) and Length (1 byte) are zeros 
+            CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(http_msg_ram.read(first_char_index + i), "http_msg_ram");
             CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(allowed_url[i], "allowed_url");
-            http_msg_ram.read(first_char_index.add(UnsignedInteger.instantiateFrom(8, i))).forceEqual(allowed_url[i]);
+            http_msg_ram.read(first_char_index + i).forceEqual(allowed_url[i]);
           } else {
 
           }
         } else {
           ConditionalScopeTracker.pushMain();
-          ConditionalScopeTracker.push(bit_a0h0uc);
-          CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(http_msg_ram.read(first_char_index.add(UnsignedInteger.instantiateFrom(8, i))), "http_msg_ram");
+          ConditionalScopeTracker.push(bit_a0g0uc);
+          // Check if first 2 bytes after Type (01, 1 byte) and Length (1 byte) are zeros 
+          CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(http_msg_ram.read(first_char_index + i), "http_msg_ram");
           CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(allowed_url[i], "allowed_url");
-          http_msg_ram.read(first_char_index.add(UnsignedInteger.instantiateFrom(8, i))).forceEqual(allowed_url[i]);
+          http_msg_ram.read(first_char_index + i).forceEqual(allowed_url[i]);
 
           ConditionalScopeTracker.pop();
 
@@ -650,13 +651,13 @@ public class LabelExtraction {
   public static UnsignedInteger[] firewall(UnsignedInteger[] http_msg, UnsignedInteger[] allowed_url, UnsignedInteger url_length, UnsignedInteger path_position) {
     // Get the first index where CRLF appears 
     // TODO: could we use the assumption that the first 4 are "GET "? 
-    int first_char_index = 4;
+    int first_char_index = 2;
     // Create a RAM from the http message. 
     // RAM is required as the first CRLF location is variable 
     SmartMemory<UnsignedInteger> http_msg_ram = new SmartMemory(UnsignedInteger.instantiateFrom(8, http_msg), UnsignedInteger.__getClassRef(), new Object[]{"8"});
 
     // Verifies the http string before the CRLF 
-    match_http(http_msg_ram, path_position.copy(8), allowed_url, url_length.copy(8));
+    match_http(http_msg_ram, first_char_index, allowed_url, url_length.copy(8));
     return http_msg;
   }
 

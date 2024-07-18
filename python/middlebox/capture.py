@@ -327,7 +327,6 @@ def prepare_parameters(packets_transcript_json):
         f.write('0'*32                                                                          + '\n') # HS (Witness)
         f.write(params['client_server_hello']['hash']                                           + '\n') # H_2
         f.write(params['client_server_hello']['transcript']                                     + '\n') # PT_2
-        f.write('0'*32                                                                          + '\n') # Certificate Verify
         f.write(params['handshake']['tail']                                                     + '\n') # Certificate Verify Tail
         f.write(params['server_finished']['ciphertext']                                         + '\n') # Server Finished
         f.write(params['extensions_certificate_certificatevrfy_serverfinished']['transcript']   + '\n') # CT_3
@@ -338,7 +337,14 @@ def prepare_parameters(packets_transcript_json):
         f.write('0'*32                                                                          + '\n') # HTTP3 Request Head Length (Witness)
         f.write('0'*32                                                                          + '\n') # Path poisition in Request (Witness)
 
+# TODO: Come trovare la richiesta HTTP3 - contare l'ordine dei pacchetti da ambo i lati,
+# dopo l'ack del ServerFinished ho il pacchetto con la richiesta http3
 
+# TODO: PULIZIA VARIABILI MPS
+
+# TODO: Match sequenziale - GET: ritorna function information, POST: chiamata a funzione.
+# Method è sempre POST, Scheme è sempre https, Authority è sempre il server (IP:PORTA), Path arriva
+# dalle Policies
 
 def process_with_pyshark(fileName):
     global PACKET_NUMBER_LENGTH

@@ -42,7 +42,6 @@ public class HTTP3_String extends CircuitGenerator {
             String HS_line = br.readLine();
             String H2_line = br.readLine();
             String pt2_line = br.readLine();
-            String cert_verify_line = br.readLine();
             String cert_verify_tail_line = br.readLine();
             String server_finished_line = br.readLine();
             String ct3_line = br.readLine();
@@ -71,12 +70,6 @@ public class HTTP3_String extends CircuitGenerator {
 
 
             // CERTIFICATE VERIFY 
-
-            for (int i = 0; i < cert_verify_line.length() / 2; i = i + 1) {
-              CertVerify_ct[i].mapValue(new BigInteger(cert_verify_line.substring(2 * i, 2 * i + 2), 16), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
-            }
-
-            CertVerify_len.mapValue(BigInteger.valueOf(cert_verify_line.length() / 2), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
 
             CertVerify_tail_len.mapValue(BigInteger.valueOf(cert_verify_tail_line.length() / 2), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
 
@@ -167,7 +160,6 @@ public class HTTP3_String extends CircuitGenerator {
             String HS_line = br.readLine();
             String H2_line = br.readLine();
             String pt2_line = br.readLine();
-            String cert_verify_line = br.readLine();
             String cert_verify_tail_line = br.readLine();
             String server_finished_line = br.readLine();
             String ct3_line = br.readLine();
@@ -196,12 +188,6 @@ public class HTTP3_String extends CircuitGenerator {
 
 
             // CERTIFICATE VERIFY 
-
-            for (int i = 0; i < cert_verify_line.length() / 2; i = i + 1) {
-              CertVerify_ct[i].mapValue(new BigInteger(cert_verify_line.substring(2 * i, 2 * i + 2), 16), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
-            }
-
-            CertVerify_len.mapValue(BigInteger.valueOf(cert_verify_line.length() / 2), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
 
             CertVerify_tail_len.mapValue(BigInteger.valueOf(cert_verify_tail_line.length() / 2), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
 
@@ -328,14 +314,14 @@ public class HTTP3_String extends CircuitGenerator {
   public static String randomid;
   public static String pktnum;
   public static final int MAX_DNS_CT_LEN = 300;
-  public static final int MAX_URL_LEN = 50;
+  public static final int MAX_URL_LEN = 100;
   @Override
   public void __defineInputs() {
     super.__defineInputs();
     TR3_len = UnsignedInteger.createInput(this, 16);
-    CertVerify_len = UnsignedInteger.createInput(this, 16);
     CertVerify_tail_len = UnsignedInteger.createInput(this, 8);
     url_length = UnsignedInteger.createInput(this, 8);
+    CertVerify_tail_head_len = UnsignedInteger.createInput(this, 8);
 
 
 
@@ -343,7 +329,6 @@ public class HTTP3_String extends CircuitGenerator {
     CertVerifyTail_ServerFinished_ct = (UnsignedInteger[]) UnsignedInteger.createInputArray(CircuitGenerator.__getActiveCircuitGenerator(), Util.getArrayDimensions(CertVerifyTail_ServerFinished_ct), 8);
     url_bytes = (UnsignedInteger[]) UnsignedInteger.createInputArray(CircuitGenerator.__getActiveCircuitGenerator(), Util.getArrayDimensions(url_bytes), 8);
     http3_request_ct = (UnsignedInteger[]) UnsignedInteger.createInputArray(CircuitGenerator.__getActiveCircuitGenerator(), Util.getArrayDimensions(http3_request_ct), 8);
-    CertVerify_ct = (UnsignedInteger[]) UnsignedInteger.createInputArray(CircuitGenerator.__getActiveCircuitGenerator(), Util.getArrayDimensions(CertVerify_ct), 8);
 
 
 
@@ -375,7 +360,6 @@ public class HTTP3_String extends CircuitGenerator {
     super.__defineVerifiedWitnesses();
 
     path_position = UnsignedInteger.createVerifiedWitness(this, 8);
-    CertVerify_tail_head_len = UnsignedInteger.createVerifiedWitness(this, 8);
     http3_request_head_len = UnsignedInteger.createVerifiedWitness(this, 8);
 
 
@@ -401,7 +385,7 @@ public class HTTP3_String extends CircuitGenerator {
   public void outsource() {
     // ********************* Channel Opening ********************** 
     UnsignedInteger[] SHA_H_Checkpoint_32 = xjsnark.util_and_sha.Util.convert_8_to_32(SHA_H_Checkpoint);
-    values = TLSKeySchedule.quic_get1RTT_HS_new(HS, H2, TR3_len.copy(16), CertVerify_len.copy(16), CertVerifyTail_ServerFinished_ct, CertVerify_tail_len.copy(8), SHA_H_Checkpoint_32, http3_request_ct, CertVerify_ct, CertVerify_tail_head_len.copy(8), http3_request_head_len.copy(8));
+    values = TLSKeySchedule.quic_get1RTT_HS_new(HS, H2, TR3_len.copy(16), CertVerifyTail_ServerFinished_ct, CertVerify_tail_len.copy(8), SHA_H_Checkpoint_32, http3_request_ct, CertVerify_tail_head_len.copy(8), http3_request_head_len.copy(8));
     string_http = LabelExtraction.firewall(values[0], url_bytes, url_length.copy(8), path_position.copy(8));
   }
   public int[] str_to_array(String str) {

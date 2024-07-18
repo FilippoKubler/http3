@@ -176,12 +176,12 @@ public class TLSKeySchedule {
 
     // KEYS ARE CORRECT 
 
-    UnsignedInteger[] SHTS = HKDF.quic_hkdf_expand_derive_secret(HS, "s hs traffic", H2);
+    UnsignedInteger[] SHTS = HKDF.hkdf_expand_derive_secret(HS, "s hs traffic", H2);
 
     // traffic key and iv for "server handshake" messages 
-    UnsignedInteger[] tk_shs = HKDF.quic_hkdf_expand_derive_tk(SHTS, 16);
+    UnsignedInteger[] tk_shs = HKDF.hkdf_expand_derive_tk(SHTS, 16);
 
-    UnsignedInteger[] iv_shs = HKDF.quic_hkdf_expand_derive_iv(SHTS, 12);
+    UnsignedInteger[] iv_shs = HKDF.hkdf_expand_derive_iv(SHTS, 12);
 
     // TODO: check if I can deep copy iv_shs last byte instead of xoring 2 times 
     // XOR original IV with the packet number (eiter 0x02 or 0x03) 
@@ -423,11 +423,11 @@ public class TLSKeySchedule {
     // Verify that the two SF values are identical 
     Util.combine_8_into_256(SF_calculated).forceEqual(Util.combine_8_into_256(SF_transcript));
 
-    UnsignedInteger[] dHS = HKDF.quic_hkdf_expand_derive_secret(HS, "derived", SHA2.hash_of_empty());
+    UnsignedInteger[] dHS = HKDF.hkdf_expand_derive_secret(HS, "derived", SHA2.hash_of_empty());
 
     UnsignedInteger[] MS = HKDF.hkdf_extract(dHS, Util.new_zero_array(32));
 
-    UnsignedInteger[] CATS = HKDF.quic_hkdf_expand_derive_secret(MS, "c ap traffic", H_3);
+    UnsignedInteger[] CATS = HKDF.hkdf_expand_derive_secret(MS, "c ap traffic", H_3);
 
     // client application traffic key, iv 
     UnsignedInteger[] tk_capp = HKDF.hkdf_expand_derive_tk(CATS, 16);
@@ -439,10 +439,9 @@ public class TLSKeySchedule {
   }
 
 
-  public static UnsignedInteger[][] quic_get1RTT_HS_new(UnsignedInteger[] HS, UnsignedInteger[] H2, UnsignedInteger TR3_len, UnsignedInteger CertVerify_len, UnsignedInteger[] CertVerifyTail_ServerFinished_ct, UnsignedInteger CertVerify_tail_len, UnsignedInteger[] SHA_H_Checkpoint, UnsignedInteger[] http3_request_ct, UnsignedInteger[] CertVerify_ct, UnsignedInteger CertVerify_tail_head_len, UnsignedInteger http3_request_head_len) {
+  public static UnsignedInteger[][] quic_get1RTT_HS_new(UnsignedInteger[] HS, UnsignedInteger[] H2, UnsignedInteger TR3_len, UnsignedInteger[] CertVerifyTail_ServerFinished_ct, UnsignedInteger CertVerify_tail_len, UnsignedInteger[] SHA_H_Checkpoint, UnsignedInteger[] http3_request_ct, UnsignedInteger CertVerify_tail_head_len, UnsignedInteger http3_request_head_len) {
 
     // INPUTS ARE CORRECT 
-
 
 
 
@@ -474,7 +473,7 @@ public class TLSKeySchedule {
     // That is, the length of head may not be a multiple of 16 
     UnsignedInteger offset = UnsignedInteger.instantiateFrom(8, CertVerify_tail_head_len.mod(UnsignedInteger.instantiateFrom(16, 16))).copy(8);
 
-    // TODO: CONSIDERARE DI UNIRE TAIL E SERVERFINISHED IN INPUT E DECIFRARLI ASSIEME 
+
     // This function decrypts the tail with the specific GCM block number and offset within the block (VERY CONVENIENT) 
     for (int i = 0; i < CertVerifyTail_ServerFinished_ct.length; i++) {
       CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(CertVerifyTail_ServerFinished_ct[i], "CertVerifyTail_ServerFinished_ct");
