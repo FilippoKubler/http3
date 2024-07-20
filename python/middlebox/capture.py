@@ -335,16 +335,12 @@ def prepare_parameters(packets_transcript_json):
         f.write(params['handshake']['transcript']                                               + '\n') # TR_3
         f.write(str(params['handshake']['tail_head_length'])                                    + '\n') # Certificate Verify Tail Head Length
         f.write('0'*32                                                                          + '\n') # HTTP3 Request Head Length (Witness)
-        f.write('0'*32                                                                          + '\n') # Path poisition in Request (Witness)
+        # f.write('0'*32                                                                          + '\n') # Path poisition in Request (Witness)
 
 # TODO: Come trovare la richiesta HTTP3 - contare l'ordine dei pacchetti da ambo i lati,
 # dopo l'ack del ServerFinished ho il pacchetto con la richiesta http3
 
 # TODO: PULIZIA VARIABILI MPS
-
-# TODO: Match sequenziale - GET: ritorna function information, POST: chiamata a funzione.
-# Method è sempre POST, Scheme è sempre https, Authority è sempre il server (IP:PORTA), Path arriva
-# dalle Policies
 
 def process_with_pyshark(fileName):
     global PACKET_NUMBER_LENGTH
@@ -427,14 +423,14 @@ def process_with_pyshark(fileName):
                                 
                                 try:
                                     packets_transcript_json['HANDSHAKE-PACKETS'].append({
-                                        'length': len(encrypted_payload),
-                                        'ciphertext': encrypted_payload.hex()
+                                        'length': len(encrypted_payload[4:]),
+                                        'ciphertext': encrypted_payload[4:].hex()
                                     })
                                 except:
                                     packets_transcript_json['HANDSHAKE-PACKETS'] = []
                                     packets_transcript_json['HANDSHAKE-PACKETS'].append({
-                                        'length': len(encrypted_payload),
-                                        'ciphertext': encrypted_payload.hex()
+                                        'length': len(encrypted_payload[4:]),
+                                        'ciphertext': encrypted_payload[4:].hex()
                                     })
 
 

@@ -331,8 +331,13 @@ async def perform_http_request(
         'length': client._quic.packets_transcript_json['SERVER-HTTP3 RESPONSE']['length'],        
     }
 
-    
-    params['http3']['request']['huffman_path_encoding'] = client._http._allowed_headers # huffman_encoding(urllib.parse.urlparse(url).path)
+    # TODO: da verificare se tenere il padding di huffman e come fare il match bit a bit (? = 1111111100, 8 bit a 1, il path sarà sempre "paddato" prima di eventuali parametri)
+    path = urllib.parse.urlparse(url).path
+    path_in_huffman, huffman_padding = huffman_encoding(path)
+    print(f"Path: {path}", f"Huffman Path: {path_in_huffman}", f"Huffman Path not Padded: {path_in_huffman[:-int(huffman_padding/8)*2]}", sep='\n', end='\n\n')
+    print(client._http._allowed_headers, client._http._allowed_headers[:-huffman_padding])
+
+    params['http3']['request']['huffman_path_encoding'] = client._http._allowed_headers # [:-huffman_padding] # huffman_encoding(urllib.parse.urlparse(url).path)
 
     params['http3']['request']['path_position'] = int(find_path_position(params['http3']['request']['plaintext'], params['http3']['request']['huffman_path_encoding']) / 2)
 
@@ -362,7 +367,7 @@ async def perform_http_request(
         f.write(str(params['handshake']['transcript'])                                          + '\n') # TR_3
         f.write(str(params['certificate_verify']['head_length'])                                + '\n') # Certificate Verify Tail Head Length
         f.write(str(params['http3']['request']['head_length'])                                  + '\n') # HTTP3 Request Head Length
-        f.write(str(params['http3']['request']['path_position'])                                + '\n') # Path poisition in Request
+        # f.write(str(params['http3']['request']['path_position'])                                + '\n') # Path poisition in Request
 
         f.write('~'*10 + '    EXPECTED VALUES    ' + '~'*10 + '\n')
         f.write(f'Certificate Verify Length: {params["certificate_verify"]["length"]}\n')

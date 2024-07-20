@@ -308,12 +308,12 @@ def round_up(x):
 
 
 
-def huffman_encoding(path):
+def huffman_encoding(path: str):
     huffman_path_coding = ''
     for char in path:
         huffman_path_coding += huffman_encoding_table[char]
 
-    return hex(int(huffman_path_coding.ljust(round_up(len(huffman_path_coding)), '1'), 2))[2:]
+    return hex(int(huffman_path_coding.ljust(round_up(len(huffman_path_coding)), '1'), 2))[2:], round_up(round_up(len(huffman_path_coding)) - len(huffman_path_coding))
 
 
 
@@ -400,14 +400,9 @@ def huffman_decoding(headers):
 """
 :method: POST   = 11010100 | 4.5.2 Static Table index 20
 :scheme: https  = 11010111 | 4.5.2 Static Table index 23
-:authority: 192.168.1.126:4433 = 01010000 10001101 00001011 11100010 01011100 00101110
-    00111100 10111000 01010111 00001000 10011100 10111000 11010011 01001100 10110011 | 4.5.4
-    Static Table index 0 (huffman - 13 bytes)
-:path: /function/figlet = 01010001 10001100 01100010 01011011 01101010 00100010 01001100
-    01111010 10011000 10010100 11010011 01010000 01010100 11111111 | 4.5.4 Static Table
-    index 1 (huffman - 12 bytes)
-user-agent: aioquic/1.0.0 = 01011111 01010000 10001001 00011001 10001111 11011010 11010011
-    00010001 10000000 10101110 00000101 11000001 | 4.5.2 Static Table index 95
+:authority: 192.168.1.126:4433 = 01010000 10001101 00001011 11100010 01011100 00101110 00111100 10111000 01010111 00001000 10011100 10111000 11010011 01001100 10110011 | 4.5.4 Static Table index 0 (huffman - 13 bytes)
+:path: /function/figlet = 01010001 10001100 01100010 01011011 01101010 00100010 01001100 01111010 10011000 10010100 11010011 01010000 01010100 11111111 | 4.5.4 Static Table index 1 (huffman - 12 bytes)
+user-agent: aioquic/1.0.0 = 01011111 01010000 10001001 00011001 10001111 11011010 11010011 00010001 10000000 10101110 00000101 11000001 | 4.5.2 Static Table index 95
 content-lenght: 9 = 01010100 00000001 00111001 | 4.5.4 Static Table index 4 (bytes - 1 byte)
 content-type: application/x-www-form-urlencoded = 11101111 | 4.5.2 Static Table index 47
 """

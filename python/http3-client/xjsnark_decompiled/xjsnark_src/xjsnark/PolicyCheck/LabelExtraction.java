@@ -648,7 +648,7 @@ public class LabelExtraction {
   // The function does the following;
   // (1) Find the first index where the CRLF characters appear (numbers 13, 10 in decimal)
   // (2) Verify the 8 chars preceding the first CRLF is 'HTTP/1.1'
-  public static UnsignedInteger[] firewall(UnsignedInteger[] http_msg, UnsignedInteger[] allowed_url, UnsignedInteger url_length, UnsignedInteger path_position) {
+  public static UnsignedInteger[] firewall(UnsignedInteger[] http_msg, UnsignedInteger[] allowed_url, UnsignedInteger url_length) {
     // Get the first index where CRLF appears 
     // TODO: could we use the assumption that the first 4 are "GET "? 
     int first_char_index = 2;

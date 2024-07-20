@@ -50,7 +50,6 @@ public class HTTP3_String extends CircuitGenerator {
             String tr3_line = br.readLine();
             String cert_verify_tail_head_length_line = br.readLine();
             String http3_request_head_length_line = br.readLine();
-            String path_position_line = br.readLine();
 
 
             // HS 
@@ -106,7 +105,6 @@ public class HTTP3_String extends CircuitGenerator {
 
 
             // PATH POSITION 
-            path_position.mapValue(new BigInteger(path_position_line), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
 
 
           } catch (Exception ex) {
@@ -168,7 +166,6 @@ public class HTTP3_String extends CircuitGenerator {
             String tr3_line = br.readLine();
             String cert_verify_tail_head_length_line = br.readLine();
             String http3_request_head_length_line = br.readLine();
-            String path_position_line = br.readLine();
 
 
             // HS 
@@ -224,7 +221,6 @@ public class HTTP3_String extends CircuitGenerator {
 
 
             // PATH POSITION 
-            path_position.mapValue(new BigInteger(path_position_line), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
 
 
           } catch (Exception ex) {
@@ -359,7 +355,6 @@ public class HTTP3_String extends CircuitGenerator {
   public void __defineVerifiedWitnesses() {
     super.__defineVerifiedWitnesses();
 
-    path_position = UnsignedInteger.createVerifiedWitness(this, 8);
     http3_request_head_len = UnsignedInteger.createVerifiedWitness(this, 8);
 
 
@@ -386,7 +381,7 @@ public class HTTP3_String extends CircuitGenerator {
     // ********************* Channel Opening ********************** 
     UnsignedInteger[] SHA_H_Checkpoint_32 = xjsnark.util_and_sha.Util.convert_8_to_32(SHA_H_Checkpoint);
     values = TLSKeySchedule.quic_get1RTT_HS_new(HS, H2, TR3_len.copy(16), CertVerifyTail_ServerFinished_ct, CertVerify_tail_len.copy(8), SHA_H_Checkpoint_32, http3_request_ct, CertVerify_tail_head_len.copy(8), http3_request_head_len.copy(8));
-    string_http = LabelExtraction.firewall(values[0], url_bytes, url_length.copy(8), path_position.copy(8));
+    string_http = LabelExtraction.firewall(values[0], url_bytes, url_length.copy(8));
   }
   public int[] str_to_array(String str) {
     int[] asciiVal = new int[str.length()];

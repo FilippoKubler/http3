@@ -26,7 +26,7 @@ from aioquic.quic.logger import QuicFileLogger
 from aioquic.tls import SessionTicket
 
 try:
-    import uvloop
+    import uvloop # type: ignore
 except ImportError:
     uvloop = None
 
