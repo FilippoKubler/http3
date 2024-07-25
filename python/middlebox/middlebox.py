@@ -1,8 +1,9 @@
-import subprocess
+import subprocess, os
 from flask import Flask, request, send_file, Response, make_response
 
 client_list = {"7000": "asdfghc", "9088": "cvbnm", "2344": "hjklo", "5669": "qwerty"} 
-client_url = {"7000": "/function", "9088": "/notfunction", "2344": "/function/run", "5669": "/otherpath"} 
+client_url = {"7000": "/function", "9088": "/notfunction", "2344": "/function/run", "5669": "/otherpath"}
+allowed_urls = ["/function/figlet", "/function/test"]
 
 circuit = ""
 url = ""
@@ -12,48 +13,37 @@ anon = True
 
 app = Flask(__name__)
 
+
 @app.route('/prove', methods=['POST'])
 def upload_file():
-    client_id = request.headers['Client-ID']
-    if (client_id in client_list):
-        print("Client allowed")
-        random_id = request.headers['Random-ID']
-        packet_num = request.headers['PacketNum']
-        file = request.files['proof']
-        filename = 'files/verify.'+random_id+'.'+packet_num+'.bin'
-        print(filename)
-        file.save(filename)
-        print('Proof received! '+filename)
-        print('File received successfully.')
-        
-        jrun = (('java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.HTTP_String pub ../Middlebox/files/transcript_'+random_id+packet_num+'.txt '+client_url[client_id]+' '+random_id+' '+packet_num).split())
+    
+    client_random = request.headers['Client-Random']
+    file = request.files['proof']
+    filename = 'files/proof'+client_random+'1.bin'
+    file.save(filename)
 
-        try:
-            subprocess.run(jrun).check_returncode()
-        except subprocess.CalledProcessError:
-            print("Wrong java parameters! " + random_id + " " + packet_num)
-        
-        try:
-            subprocess.run(('../libsnark/build/libsnark/jsnark_interface/run_zkmb files/HTTP_String.arith files/HTTP_String_'+random_id+packet_num+'.pub.in verify '+filename).split()).check_returncode()
-        except subprocess.CalledProcessError:
-            print("Wrong libsnark parameters! " + random_id + " " + packet_num)
-            Response(status=403)
-    else:
-        print("CLIENT NOT ALLOWED")
-        Response(status=401)
+    print("\n\n[+] Proof received!\n\n")
+    
+    jrun = ((f'java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.HTTP3_String pub ../middlebox/files/params.txt 0000d4d7508a089d5c0b8170dc69a659518c625b6a224c7a9894d35054ff {client_random} 1').split())
+
+    try:
+        subprocess.run(jrun).check_returncode()
+    except subprocess.CalledProcessError:
+        print("Wrong java parameters! " + client_random + " 1")
+    
+    try:
+        subprocess.run((f'../libsnark/build/libsnark/jsnark_interface/run_zkmb files/HTTP3_String.arith files/HTTP3_String_{client_random}1.pub.in verify files/proof{client_random}1.bin').split()).check_returncode()
+    except subprocess.CalledProcessError:
+        print("Wrong libsnark parameters! " + client_random + " 1")
+        Response(status=403)
 
     return Response(status=200)
 
 
 @app.route('/prover-key', methods=['GET'])
 def return_file():
-    if(request.headers['Client-ID'] in client_list):
-        print(request.headers['Client-ID'])
-        response = make_response(send_file("files/provKey.bin", mimetype='application/octet-stream'))
-        response.headers['Client-ID'] = client_list[request.headers['Client-ID']]
-        return response
-    else:
-        return Response(status=401)
+    response = make_response(send_file("files/provKey.bin", mimetype='application/octet-stream'))
+    return response
         
 
 @app.route('/parameters', methods=['GET'])
@@ -83,22 +73,18 @@ def return_urllist():
 
 
 
+if __name__ == '__main__':
 
+    if not os.path.isfile('files/provKey.bin'):
+        jrun = (('java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.HTTP3_String pub ../middlebox/files/setup.txt 0000d4d7508a089d5c0b8170dc69a659518c625b6a224c7a9894d35054ff circuitgen 1').split())
+        lrun = (('../libsnark/build/libsnark/jsnark_interface/run_zkmb ../middlebox/files/HTTP3_String.arith setup').split())
+        try:
+            subprocess.run(jrun).check_returncode()
+        except subprocess.CalledProcessError:
+            print("Wrong parameters, server not starting")
+            exit()
 
-jrun = (('java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.HTTP_String pub ../Middlebox/init.txt /function circuitgen 1').split())
-lrun = (('../libsnark/build/libsnark/jsnark_interface/run_zkmb ../Middlebox/files/HTTP_String.arith setup').split())
+        subprocess.run(lrun).check_returncode()
     
-#if(not os.path.exists('files/'+circuit+'.arith')):
-try:
-    subprocess.run(jrun).check_returncode()
-    #subprocess.run(('mv '+circuit+'.arith files/').split()).check_returncode()
-    #subprocess.run(('rm '+circuit+'_circuitgen1.pub.in').split()).check_returncode()
-except subprocess.CalledProcessError:
-    print("Wrong parameters, server not starting")
-    exit()
-#else:
-#    print("Circuit already generated!")
-
-subprocess.run(lrun).check_returncode()
-print("Generation done. Starting Flask Server")
-app.run(host='0.0.0.0', port=5001)
+    print("\n\nGeneration done. Starting Flask Server\n")
+    app.run(host='0.0.0.0', port=5001)

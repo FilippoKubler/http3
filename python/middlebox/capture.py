@@ -1,6 +1,5 @@
-import sys, copy, math, pyshark
+import sys, math, pyshark, threading
 from datetime import datetime
-import threading
 
 
 sessions = {}
@@ -30,144 +29,10 @@ STREAM_HEADER           = 4
 # ------------------------------------------------------------
 
 
+# TODO: Come trovare la richiesta HTTP3 - contare l'ordine dei pacchetti da ambo i lati,
+# dopo l'ack del ServerFinished ho il pacchetto con la richiesta http3
 
-
-def parseApplicationData(tls_data):
-    #print(tls_data)
-    msgs=[]
-    offset = 0
-    while offset < len(tls_data):
-        content_type = int(tls_data[offset:offset+1].hex(), 16)
-        record_length = int(tls_data[offset+3:offset+5].hex(), 16)
-        tls_message = tls_data[offset+5:offset+5+record_length]
-        '''
-        # Process each TLS message separately based on the content type
-        if content_type == 20:
-            # ChangeCipherSpec message
-            print("Parsed as ChangeCipherSpec:",record_length)
-        elif content_type == 21:
-            # Alert message
-            print("Alert:")
-        elif content_type == 22:
-            # Handshake message
-            print("Parsed as handshake:",record_length)
-        elif content_type == 23:
-            # Application Data message
-            print("Parsed as Application Data:", record_length)
-            #if(len(tls_message)<record_length):
-            #    buffer=tls_message
-            #print(tls_message.hex())
-            #print("-----------------")
-        else: print("Error parsing", content_type, record_length)
-        '''
-        msgs.append([content_type, tls_message])
-        offset += record_length + 5
-    return msgs        
-        
-def moreDataCondition(packet):
-    #print(tcp_streams)
-    if(len(tcp_streams[packet.tcp.stream])>1 
-        and packet.tcp.dstport==tcp_streams[packet.tcp.stream][-1].tcp.dstport     #they are from the same direction 
-        and int(packet.tcp.len)>0                                             #and not an ack/fin/syn...
-        and packet.tcp.seq==tcp_streams[packet.tcp.stream][-2].tcp.nxtseq):     #and sequence numbers are adjacent
-        return True
-    else: return False
-
-def getTail(servExt, ch_sh): #implements the get_tail_minus_36 from ChannelShortcut
-    tot=ch_sh+servExt
-    output = bytearray()
-    tot_len = len(tot)
-    whole_blocks = math.floor((tot_len - 36) / 64)
-    tail_len = tot_len - whole_blocks * 64
-    output=tot[whole_blocks*64:tot_len]
-    return output
-
-def printTranscript(transcripts):
-    for id, transcript in transcripts.items():
-        for k,v in transcript.items():
-            print(k,": ",(v.hex() if isinstance(v, (bytearray, bytes)) else v))
-
-def elaborateAppData(packet,stream_id):
-    if status[packet.tcp.stream]["S_CS"] and not status[packet.tcp.stream]["SF"]: #it's still HANDSHAKE
-        if (len(toBytes(packet.tls.app_data)) < 60): #set this to a reasonable lowerbound that includes Mandatory Extensions, min length Certificate + Verify and Finished (53)
-            msgs=parseApplicationData(toBytes(packet.tcp.payload))
-            if len(msgs)==6:
-                status[packet.tcp.stream]["SF"] = True
-                status[packet.tcp.stream]["src"]=packet.tcp.srcport
-                status[packet.tcp.stream]["dst"]=packet.tcp.dstport
-                print("Encrypted Ext + Certificate + Server Finished")
-            else:
-                print("Error")
-            handshake_ct = bytearray()
-            transcripts[packet.tcp.stream]['ServExt_ct_EncExt']=msgs[2][1][:-17]
-            transcripts[packet.tcp.stream]['ServExt_ct_Cert']=msgs[3][1][:-17]
-            transcripts[packet.tcp.stream]['ServExt_ct_CertVerify']=msgs[4][1][:-17]
-            transcripts[packet.tcp.stream]['ServExt_ct_SF']=msgs[5][1][:-17]
-            for msg in msgs[2:]:
-                handshake_ct+=msg[1][:-17]
-#            handshake_ct = handshake_ct[:-1]
-            transcripts[packet.tcp.stream]['ServExt_ct']=handshake_ct
-            transcripts[packet.tcp.stream]['ServExt_ct_len']=len(handshake_ct)
-            transcripts[packet.tcp.stream]['ServExt_ct_tail']=getTail(handshake_ct, transcripts[packet.tcp.stream]['ch_sh'])
-            print("Is this less than 48? -> ",math.floor((len(transcripts[packet.tcp.stream]['ServExt_ct'])-36)/64))
-            print("Tail: ",len(transcripts[packet.tcp.stream]['ServExt_ct_tail']))
-        else: #there is only one appData record layer
-            print("Server Finished")
-            handshake_ct=toBytes(packet.tls.app_data)
-            #assume SF is inside the big packet
-            status[packet.tcp.stream]["SF"] = True
-            status[packet.tcp.stream]["src"]=packet.tcp.srcport
-            status[packet.tcp.stream]["dst"]=packet.tcp.dstport
-            handshake_ct=handshake_ct[:-17]
-            transcripts[packet.tcp.stream]['ServExt_ct']=handshake_ct
-            transcripts[packet.tcp.stream]['ServExt_ct_len']=len(handshake_ct)
-            transcripts[packet.tcp.stream]['ServExt_ct_tail']=getTail(handshake_ct, transcripts[packet.tcp.stream]['ch_sh'])
-            
-    elif status[packet.tcp.stream]["C_CS"] and not status[packet.tcp.stream]["CF"]: #it's still HANDSHAKE
-        print("Client Finished")
-        status[packet.tcp.stream]["CF"]=True 
-        status[packet.tcp.stream]["src"]=packet.tcp.srcport
-        status[packet.tcp.stream]["dst"]=packet.tcp.dstport
-        print(status[packet.tcp.stream], transcripts[packet.tcp.stream])
-    elif status[packet.tcp.stream]["CF"] and status[packet.tcp.stream]["src"]==packet.tcp.srcport: #app data after CF-> the request
-        print("(",stream_id,") App Layer Request")
-        transcripts[stream_id]["appl_ct"]=packet.tls.app_data
-        transcripts[packet.tcp.stream]["appl_ct"]
-        print(packet.tls.app_data)
-        print("CIAO")
-
-def print_transcript(transcript, stream_id):
-    original_stdout = sys.stdout
-    random_id = toBytes(transcript['RandomID']).hex()
-    name = "transcript_"+random_id+str(transcript['PacketNumber'])+".txt" #OR we could use the unique stream_id...
-    
-    f = open("files/"+name, "w")
-    sys.stdout = f
-    print('0'*32)    #PSK
-    print('0'*32)    #ec_sk
-    print(transcript['Cx'].hex())
-    print(transcript['Cy'].hex())
-    print(transcript['Sx'].hex())
-    print(transcript['Sy'].hex())    
-    print('0'*32)    #HS (Witness)
-    print(transcript['H2'].hex())
-    print('0'*32) #H7
-    print('0'*32)    #H3
-    print('0'*32)    #SF
-    print(transcript['ch_sh'].hex())
-    #print(transcript['ServExt_ct'].hex())
-    print(transcript['ServExt_ct_EncExt'].hex())
-    print(transcript['ServExt_ct_Cert'].hex())
-    print(transcript['ServExt_ct_CertVerify'].hex())
-    print(transcript['ServExt_ct_SF'].hex())
-    print(transcript['appl_ct'].hex())
-    print('0'*32)    # sha state
-    print(transcript['PacketNumber'])    #TODO IMPLEMENT IN CIRCUIT
-    print('0'*32)
-    f.close()
-    sys.stdout = original_stdout
-    return name
-
+# TODO: PULIZIA VARIABILI MPS
 
 
 
@@ -272,6 +137,7 @@ def decrypt_payload(packet, secret):
     return payload
 
 
+
 def prepare_parameters(packets_transcript_json):
     
     params = {}
@@ -316,7 +182,7 @@ def prepare_parameters(packets_transcript_json):
     handshake_tail = get_tail_minus_36(params['handshake']['transcript'])
     params['handshake']['tail'] = handshake_tail[0 : int(len(handshake_tail) - 72)] # 28 byte per completare il blocco con i primi 4 bytes del Server Finished (sha256)
     params['handshake']['tail_length'] = int( len(params['handshake']['tail']) / 2 )
-    params['handshake']['tail_head'] = str(packets_transcript_json['HANDSHAKE-PACKETS'][-1]['ciphertext']).split(params['handshake']['tail'])[0] # Compute the head (in the Record Layer) before the tail
+    params['handshake']['tail_head'] = str(packets_transcript_json['HANDSHAKE-PACKETS'][-1]['CRYPTO-Frame']).split(params['handshake']['tail'])[0] # Compute the head (in the Record Layer) before the tail
     params['handshake']['tail_head_length'] = int( len(params['handshake']['tail_head']) / 2 )
 
     params['http3'] = {}
@@ -324,7 +190,7 @@ def prepare_parameters(packets_transcript_json):
         'ciphertext': packets_transcript_json['HTTP3-REQUEST']['ciphertext'],
         'length': packets_transcript_json['HTTP3-REQUEST']['length'],
     }
-    params['http3']['request']['head'] = str(packets_transcript_json['HTTP3-REQUEST']['STREAM-FRAME']).split(params['http3']['request']['ciphertext'])[0]
+    params['http3']['request']['head'] = str(packets_transcript_json['HTTP3-REQUEST']['ciphertext']).split(params['http3']['request']['ciphertext'])[0]
     params['http3']['request']['head_length'] = int( len(params['http3']['request']['head']) / 2 )
 
 
@@ -346,10 +212,8 @@ def prepare_parameters(packets_transcript_json):
         f.write('0'*32                                                                          + '\n') # HTTP3 Request Head Length (Witness)
         # f.write('0'*32                                                                          + '\n') # Path poisition in Request (Witness)
 
-# TODO: Come trovare la richiesta HTTP3 - contare l'ordine dei pacchetti da ambo i lati,
-# dopo l'ack del ServerFinished ho il pacchetto con la richiesta http3
 
-# TODO: PULIZIA VARIABILI MPS
+
 
 def process_with_pyshark(fileName):
     global PACKET_NUMBER_LENGTH
@@ -364,15 +228,16 @@ def process_with_pyshark(fileName):
     server_connection_id    = b''
     initial                 = True
 
-    pcap_data = pyshark.FileCapture(fileName)
+    # pcap_data = pyshark.FileCapture(fileName)
     # pcap_data_raw = pyshark.FileCapture(fileName, use_json=True, include_raw=True)
-    # capture=pyshark.LiveCapture(interface, bpf_filter="udp", output_file="./files/capture.pcapng")
+    capture=pyshark.LiveCapture(interface, bpf_filter="udp", output_file="./files/capture.pcapng")
 
 
     #scan all packets in the capture
-    for packet in pcap_data:
-    # for packet in capture.sniff_continuously():
+    # for packet in pcap_data:
+    for packet in capture.sniff_continuously():
         # for layer in packet.layers:
+        # print(packet)
         layer = packet.quic
 
         if hasattr(layer, 'packet_length'):
@@ -390,9 +255,8 @@ def process_with_pyshark(fileName):
                 print("HTTP3 REQUEST -", encrypted_payload.hex(), '\n\n')
 
                 packets_transcript_json['HTTP3-REQUEST'] = {
-                    'length': len(encrypted_payload[4:]),
-                    'ciphertext': encrypted_payload[4:].hex(),
-                    'STREAM-FRAMER': encrypted_payload.hex()
+                    'length': len(encrypted_payload),
+                    'ciphertext': encrypted_payload.hex()
                 }
 
                 seen_packets['CH']                      = False
@@ -403,6 +267,8 @@ def process_with_pyshark(fileName):
                 seen_packets['CertVrfy-SF']             = False
                 seen_packets['CertVrfy-SF_ACK']         = False
                 seen_packets['HTTP3-REQUEST']           = True
+
+                prepare_parameters(packets_transcript_json)
 
             if hasattr(layer, 'long_packet_type'):
                 
@@ -465,7 +331,8 @@ def process_with_pyshark(fileName):
                             try:
                                 packets_transcript_json['HANDSHAKE-PACKETS'].append({
                                     'length': len(encrypted_payload[5:]),               # CRYPTO HEADER di 5 byte perché: Offset nel CRYPTO Header è 1153 (codificato con 2 bytes), mentre length dipende dalla lunghezza del certificato (controllare qual è la dimensione minima)
-                                    'ciphertext': encrypted_payload[5:].hex()
+                                    'ciphertext': encrypted_payload[5:].hex(),
+                                    'CRYPTO-Frame': encrypted_payload.hex()
                                 })
                                 seen_packets['CertVrfy-SF']    = True
                             except:
@@ -485,168 +352,13 @@ def process_with_pyshark(fileName):
                              
         print(seen_packets, '\n')
         print("\n*****************************************************************************************************************************************************************************\n\n\n")
-
-    prepare_parameters(packets_transcript_json)
  
-        # if 'tcp' in packet:
-        #     stream_id=packet.tcp.stream
-        #     if stream_id not in tcp_streams:
-        #         print("(",stream_id,") New stream")
-        #         tcp_streams[stream_id]=[]
-        #         status[stream_id]=copy.deepcopy(tls_session)
-        #     tcp_streams[stream_id].append(packet)
-            
-        #     if 'tls' in packet:
-        #         #if hasattr(packet.tls, 'handshake') and not hasattr(packet.tls, 'handshake_session_id_length'): #???
-        #         #    print(packet.tls)
-        #         #    continue
-        #         if hasattr(packet.tls, 'handshake') and int(packet.tls.handshake_session_id_length)>0:
-        #             if packet.tls.handshake_type == '1': #Client Hello
-        #                 print("(",stream_id,") Client Hello")
-        #                 status[stream_id]['CH'] = True
-        #                 status[stream_id]['src']=packet.tcp.srcport
-        #                 status[stream_id]['dst']=packet.tcp.dstport
-        #                 #print(status)
-        #                 transcripts[stream_id]=copy.deepcopy(transcript)
-        #                 Cx=toHex(packet.tls.handshake_extensions_key_share_key_exchange)[1:33]
-        #                 transcripts[stream_id]["Cx"]=Cx
-        #                 Cy=toHex(packet.tls.handshake_extensions_key_share_key_exchange)[33:65]
-        #                 transcripts[stream_id]["Cy"]=Cy
-        #                 ch_sh = parseApplicationData(toHex(packet.tcp.payload))[0][1]
-                        
-        #                 #print(packet.tls._all_fields)
-        #                 #session_id = packet.tls.handshake_session_id
-        #                 client_random = packet.tls.handshake_random
-        #                 transcripts[stream_id]["RandomID"] = client_random
-        #                 cipher_suites = packet.tls.handshake_ciphersuites
-        #             elif packet.tls.handshake_type == '2':
-        #                 print("(",stream_id,") Server Hello")
-        #                 if status[stream_id] and status[stream_id]["CH"] and status[stream_id]["src"]==packet.tcp.dstport:
-        #                     status[stream_id]["SH"]=True
-        #                     status[stream_id]["src"]=packet.tcp.srcport
-        #                     status[stream_id]["dst"]=packet.tcp.dstport
-        #                     ch_sh+=parseApplicationData(toHex(packet.tcp.payload))[0][1]
-        #                     transcripts[stream_id]["ch_sh"]=ch_sh
-        #                     transcripts[stream_id]["ch_sh_len"]=len(ch_sh)
-        #                     Sx=toHex(packet.tls.handshake_extensions_key_share_key_exchange)[1:33]
-        #                     transcripts[stream_id]["Sx"]=Sx
-        #                     Sy=toHex(packet.tls.handshake_extensions_key_share_key_exchange)[33:65]
-        #                     transcripts[stream_id]["Sy"]=Sy
-        #                     hasher=sha256()
-        #                     hasher.update(ch_sh)
-        #                     ch_sh_hash=hasher.digest()
-        #                     transcripts[stream_id]["H2"]=ch_sh_hash
-        #                 else: print("Errors")
-        #         if hasattr(packet.tls, 'change_cipher_spec'):
-        #             if status[stream_id] and packet.tcp.srcport==status[stream_id]["src"]:    #it's subsequent to a server hello, so it's from SERVER
-        #                 print("(",stream_id,") Server ", end="")
-        #                 if status[stream_id]["SH"]:
-        #                     status[stream_id]["S_CS"]=True
-        #                 else: print("Errors")
-
-        #                 #raw_payload = bytearray.fromhex(packet.tcp.payload.replace(':','')) #saves the raw bytes of the entire tcp payload of the packet
-        #                 #msgs = parseApplicationData(raw_payload)
-        #                 '''for msg in msgs:
-        #                     if msg[0]==23:
-        #                         print("Found app data in SH")
-        #                         app_data+=msg[1]'''
-                        
-        #             elif status[packet.tcp.stream] and packet.tcp.dstport==status[packet.tcp.stream]["src"]:         #it's subsequent to a server finished -> is from the CLIENT
-        #                 print("(",stream_id,") Client ", end="")
-        #                 if status[packet.tcp.stream]["SF"]:
-        #                     status[packet.tcp.stream]["C_CS"]=True
-        #                     status[packet.tcp.stream]["src"]=packet.tcp.srcport
-        #                     status[packet.tcp.stream]["dst"]=packet.tcp.dstport
-        #                 else: print("Errors at Client_ChangeCipherSpec")
-        #             print("Change_CipherSpec")
-        #             if hasattr(packet.tls, 'app_data'):
-        #                 print("(",stream_id,") Application Data: ", end="")
-        #                 app_data=elaborateAppData(packet,stream_id)
-
-                
-        #         elif not hasattr(packet.tls, 'handshake'):
-        #             #print("Not a handshake")
-        #             #if(append) and moreDataCondition(packet):     #uncomment if appendMoreData is fixed and if necessary to manually rebuild tls
-        #             #    buffer = appendMoreData(packet, buffer)
-
-        #             #TODO: check this condition: Could be that SF is not contained in app_data?
-                    
-        #             if (hasattr(packet.tls, 'app_data') 
-        #                  and status[stream_id]["src"]==packet.tcp.srcport): #if two from same direction: it's next to change_ciphertext or another app_data
-        #                 print("(",stream_id,") Application Data: ", end="")
-                        
-        #                 if status[packet.tcp.stream]["S_CS"] and not status[packet.tcp.stream]["SF"]: #it's still handshake
-        #                     print("Shouldnt enter here")
-        #                     if status[packet.tcp.stream]["App"]:
-        #                         print("Implement: merge all appData packets; pyshark cannot separate the 4 record layers autonomosuly, extract tcp.payload")
-                            
-        #                     else:
-        #                         print("Server Finished")
-        #                         handshake_ct=toHex(packet.tls.app_data)
-        #                         #assume SF is inside the big packet
-        #                         status[packet.tcp.stream]["SF"] = True
-        #                         status[packet.tcp.stream]["src"]=packet.tcp.srcport
-        #                         status[packet.tcp.stream]["dst"]=packet.tcp.dstport
-        #                         #handshake_ct=handshake_ct[:-17]
-        #                         transcripts[stream_id]['ServExt_ct']=handshake_ct
-        #                         transcripts[stream_id]['ServExt_ct_len']=len(handshake_ct)
-        #                         transcripts[stream_id]['ServExt_ct_tail']=getTail(handshake_ct, ch_sh)
-        #                 elif status[packet.tcp.stream]["C_CS"] and not status[packet.tcp.stream]["CF"]: #it's still handshake
-        #                     print("Shouldnt enter here 2")
-        #                     status[packet.tcp.stream]["CF"]=True 
-        #                     status[packet.tcp.stream]["src"]=packet.tcp.srcport
-        #                     status[packet.tcp.stream]["dst"]=packet.tcp.dstport
-        #                     print(status)
-        #                 elif status[packet.tcp.stream]["CF"] and status[packet.tcp.stream]["src"]==packet.tcp.srcport: #app data after CF-> the request
-        #                     print("App Layer Request")
-        #                     #print(packet.tls.app_data)
-        #                     status[stream_id]['App']+=1
-        #                     print(status[stream_id])
-        #                     transcripts[stream_id]['appl_ct']=toHex(packet.tls.app_data)[:-17] #Check: odd byte number
-        #                     transcripts[stream_id]['PacketNumber'] = status[stream_id]['App']
-        #                     name = print_transcript(transcripts[stream_id], stream_id)
-        #                     print("Computing inputs")
-                            
-        #                     #java_call = threading.Thread(target=call_java, args=(name,))
-        #                     #threads.append(java_call)
-        #                     #java_call.start()
-                            
-        #                     #TODO: consider implementing a queue for incoming new processes
-
-        #             #print(status)
-        #             #print(buffer.hex(),'\n')
-        #             #print(packet.tls.record_length, packet.tls.app_data)
-
-        #     #handle TCP streams to make sure the flow is consistent
-        #     elif packet.tcp.stream in status and int(packet.tcp.len)>0: 
-                    
-        #             print("(",stream_id,") Not TLS")
-        #             '''if moreDataCondition(packet):
-        #                 if append:
-                            
-        #                     buffer = appendMoreData(packet, buffer)
-        #                 else:
-                            
-        #                     buffer = toHex(packet.tcp.payload)
-        #                     #print(packet.tcp)
-        #             elif not moreDataCondition(packet) and len(buffer)>0:
-        #                 #print(buffer.hex())
-        #                 print("Finished buffering")
-        #                 #print(buffer)
-        #                 msgs=parseApplicationData(buffer)
-        #                 print('\n')
-        #                 buffer=bytearray()'''
-
-    #printTranscript(transcripts)
-    #for line in runProcess("java -cp xjsnark_decompiled/backend_bin_mod/:xjsnark_decompiled/xjsnark_bin/ xjsnark.channel_openings.ChannelShortcut pub".split()):
-    #    print(line)
 
 
-import threading
-from runprocess import runProcess
-
-print("STARTING CAPTURE . . .\n\n")
-pcap_file = "./files/quic_exchange.pcap" # when capturing remember to BPF filter by destination ip and port!
-capturer = threading.Thread(target=process_with_pyshark, args=(pcap_file,))
-threads.append(capturer)
-capturer.start()
+if __name__ == "__main__":
+    print("STARTING CAPTURE . . .\n\n")
+    # pcap_file = "./files/quic_exchange.pcap"
+    pcap_file = "./files/capture.pcapng"
+    capturer = threading.Thread(target=process_with_pyshark, args=(pcap_file,))
+    threads.append(capturer)
+    capturer.start()

@@ -395,7 +395,7 @@ def huffman_decoding(headers):
                 char = ''
                 decoded_value = ''
 
-    print(decoded_headers)
+    # print(decoded_headers)
 
 """
 :method: POST   = 11010100 | 4.5.2 Static Table index 20
@@ -437,4 +437,4 @@ ef
 
 # First test: d4d7508d0be25c2e3cb857089cb8d34cb3518c625b6a224c7a9894d35054ff5f5089198fdad31180ae05c1540139ef
 # Second test: 0000d4d7508a089d5c0b8170dc69a659518c625b6a224c7a9894d35054ff5f5089198fdad31180ae05c1540134ef
-huffman_decoding('d4d7508a089d5c0b8170dc69a659518c625b6a224c7a9894d35054ff')
+# huffman_decoding('d4d7508a089d5c0b8170dc69a659518c625b6a224c7a9894d35054ff')

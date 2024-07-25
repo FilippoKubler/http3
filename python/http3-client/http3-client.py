@@ -10,6 +10,7 @@ import copy
 import subprocess
 import urllib.parse
 import pylsqpack
+import requests
 
 import sha2_compressions
 import hashlib
@@ -73,6 +74,40 @@ def find_path_position(request: str, path_encoding: str):
         return -1
 
 
+def get_prover_key():
+    while True:
+        try:
+            response_key = requests.get("http://127.0.0.1:5001/prover-key")
+            # response_params = requests.get("http://127.0.0.1:5001/parameters")
+        except requests.ConnectionError:
+            c+=1
+            if c==1: 
+                print("Retrying until the IDS goes online...")
+            time.sleep(2)
+            continue
+        print("Connected to IDS!")
+        break
+
+    with open('files/provKey.bin', 'wb') as file:
+        file.write(response_key.content)
+
+    print("\n\n[+] Prover Key received!\n\n")
+
+
+def send_generated_proof(client_random):
+
+    with open(f'files/proof{client_random}1.bin', 'rb') as file:
+        response = requests.post("http://127.0.0.1:5001/prove", files={'proof': file}, headers={'Client-Random': client_random})
+        if response.status_code == 200:
+            print("File sent successfully.")
+        else:
+            print("Error sending file. Status code:", response.status_code)
+
+    print("\n\n[+] Proof sent!\n\n")
+
+
+
+
 
 class URL:
     def __init__(self, url: str) -> None:
@@ -115,6 +150,8 @@ class HttpClient(QuicConnectionProtocol):
             self._http = H0Connection(self._quic)
         else:
             self._http = H3Connection(self._quic)
+
+        self._client_random = ''
 
     async def get(self, url: str, headers: Optional[Dict] = None) -> Deque[H3Event]:
         """
@@ -380,9 +417,11 @@ async def perform_http_request(
         f.write(f'Server HS Secret: {client._quic.tls._server_handshake_secret}\n')
         f.write(f'Client AP Secret: {client._quic.tls._client_application_secret}\n')
 
-    subprocess.run(('java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.HTTP3_String run ./files/params.txt ' + str(params['http3']['request']['huffman_path_encoding']) + ' pippo 1').split())
+    # client random = SCID + DCID
+    client._client_random = client._quic.host_cid.hex() + client._quic._peer_cid.cid.hex()
 
-    # subprocess.run(('../libsnark/build/libsnark/jsnark_interface/run_zkmb files/'+circuitname+'.arith files/'+circuitname+'_'+tls_conn._clientRandom.hex()+str(packetNumber)+'.in prove '+tls_conn._clientRandom.hex() + ' '+str(packetNumber)).split())
+    subprocess.run((f'java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.HTTP3_String run ./files/params.txt {str(params["http3"]["request"]["huffman_path_encoding"])} {client._client_random} 1').split())
+    subprocess.run((f'../libsnark/build/libsnark/jsnark_interface/run_zkmb files/HTTP3_String.arith files/HTTP3_String_{client._client_random}1.in prove {client._client_random} 1').split())
 
 
     logger.info(
@@ -459,6 +498,10 @@ async def main(
     zero_rtt: bool,
     print_params: bool,
 ) -> None:
+    
+    get_prover_key()
+    # get_parameters()
+
     # parse URL
     parsed = urlparse(urls[0])
     assert parsed.scheme in (
@@ -506,7 +549,7 @@ async def main(
                 perform_http_request(
                     client=client,
                     url=url,
-                    data=data.split()[i] if args.data else None,
+                    data=data if args.data else None,
                     include=include,
                     output_dir=output_dir,
                     print_params=print_params,
@@ -518,6 +561,8 @@ async def main(
             # process http pushes
             process_http_pushes(client=client, include=include, output_dir=output_dir)
         client._quic.close(error_code=ErrorCode.H3_NO_ERROR)
+
+    send_generated_proof(client._client_random)
 
 
 if __name__ == "__main__":
