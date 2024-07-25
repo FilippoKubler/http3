@@ -328,11 +328,11 @@ def prepare_parameters(packets_transcript_json):
     params['http3']['request']['head_length'] = int( len(params['http3']['request']['head']) / 2 )
 
 
-    with open('params.json', 'w') as f:
+    with open('./files/params.json', 'w') as f:
         json.dump(params, f, indent=2)
 
 
-    with open('params.txt', 'w') as f:
+    with open('./files/params.txt', 'w') as f:
         f.write('0'*32                                                                          + '\n') # HS (Witness)
         f.write(params['client_server_hello']['hash']                                           + '\n') # H_2
         f.write(params['client_server_hello']['transcript']                                     + '\n') # PT_2
@@ -366,7 +366,7 @@ def process_with_pyshark(fileName):
 
     pcap_data = pyshark.FileCapture(fileName)
     # pcap_data_raw = pyshark.FileCapture(fileName, use_json=True, include_raw=True)
-    # capture=pyshark.LiveCapture(interface, bpf_filter="udp", output_file="capture.pcapng")
+    # capture=pyshark.LiveCapture(interface, bpf_filter="udp", output_file="./files/capture.pcapng")
 
 
     #scan all packets in the capture
@@ -422,13 +422,13 @@ def process_with_pyshark(fileName):
                                 secret                  = client_initial_secret
                                 peer                    = ' CLIENT '
                                 client_connection_id    = toBytes(packet.quic.scid)
-                                seen_packets['CH']    = True
+                                seen_packets['CH']      = True
                             elif layer.tls_handshake_type == '2': # Server Hello
                                 # print("Server Hello -", packet, '~'*100, '\n')
                                 secret                  = server_initial_secret
                                 peer                    = ' SERVER '
                                 server_connection_id    = toBytes(packet.quic.scid)
-                                seen_packets['SH']    = True
+                                seen_packets['SH']      = True
 
 
                             encrypted_payload = toBytes(layer.payload)[:int(len(toBytes(layer.payload)))-16]
@@ -464,14 +464,14 @@ def process_with_pyshark(fileName):
                             
                             try:
                                 packets_transcript_json['HANDSHAKE-PACKETS'].append({
-                                    'length': len(encrypted_payload[5:]),
+                                    'length': len(encrypted_payload[5:]),               # CRYPTO HEADER di 5 byte perché: Offset nel CRYPTO Header è 1153 (codificato con 2 bytes), mentre length dipende dalla lunghezza del certificato (controllare qual è la dimensione minima)
                                     'ciphertext': encrypted_payload[5:].hex()
                                 })
                                 seen_packets['CertVrfy-SF']    = True
                             except:
                                 packets_transcript_json['HANDSHAKE-PACKETS'] = []
                                 packets_transcript_json['HANDSHAKE-PACKETS'].append({
-                                    'length': len(encrypted_payload[4:]),
+                                    'length': len(encrypted_payload[4:]),               # CRYPTO HEADER di 4 byte perché: QUIC riempie il pacchetto a 1200 byte e quindi CRYPTO Payload è di 1153 (lenght codificato con 2 bytes e offset 1 byte) 
                                     'ciphertext': encrypted_payload[4:].hex()
                                 })
                                 seen_packets['EE-Cert-CertVrfy']    = True
@@ -479,14 +479,14 @@ def process_with_pyshark(fileName):
                         elif toBytes(packet.quic.scid).hex() == client_connection_id.hex():
                                 
                             if seen_packets['EE-Cert-CertVrfy_ACK'] == True:
-                                seen_packets['CertVrfy-SF_ACK']    = True
+                                seen_packets['CertVrfy-SF_ACK']         = True
                             else:
                                 seen_packets['EE-Cert-CertVrfy_ACK']    = True
                              
         print(seen_packets, '\n')
         print("\n*****************************************************************************************************************************************************************************\n\n\n")
 
-    prepare_parameters(packets_transcript_json) # capire come rimuovere HEADER Crypto dai pacchetti di Handsahke
+    prepare_parameters(packets_transcript_json)
  
         # if 'tcp' in packet:
         #     stream_id=packet.tcp.stream
@@ -646,7 +646,7 @@ import threading
 from runprocess import runProcess
 
 print("STARTING CAPTURE . . .\n\n")
-pcap_file = "quic_exchange.pcap" # when capturing remember to BPF filter by destination ip and port!
+pcap_file = "./files/quic_exchange.pcap" # when capturing remember to BPF filter by destination ip and port!
 capturer = threading.Thread(target=process_with_pyshark, args=(pcap_file,))
 threads.append(capturer)
 capturer.start()

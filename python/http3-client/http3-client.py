@@ -352,10 +352,10 @@ async def perform_http_request(
         print("."*60)
         print()
     else:
-        with open('params.json', 'w') as f:
+        with open('./files/params.json', 'w') as f:
             json.dump(params, f, indent=2)
 
-    with open('params.txt', 'w') as f:
+    with open('./files/params.txt', 'w') as f:
         f.write(params['handshake']['secret']                                                   + '\n') # HS
         f.write(params['client_server_hello']['hash']                                           + '\n') # H_2
         f.write(params['client_server_hello']['transcript']                                     + '\n') # PT_2
@@ -380,7 +380,10 @@ async def perform_http_request(
         f.write(f'Server HS Secret: {client._quic.tls._server_handshake_secret}\n')
         f.write(f'Client AP Secret: {client._quic.tls._client_application_secret}\n')
 
-    subprocess.run(('java -cp ./xjsnark_decompiled/backend_bin_mod/:./xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.HTTP3_String run params.txt ' + str(params['http3']['request']['huffman_path_encoding']) + ' pippo 1').split())
+    subprocess.run(('java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.HTTP3_String run ./files/params.txt ' + str(params['http3']['request']['huffman_path_encoding']) + ' pippo 1').split())
+
+    # subprocess.run(('../libsnark/build/libsnark/jsnark_interface/run_zkmb files/'+circuitname+'.arith files/'+circuitname+'_'+tls_conn._clientRandom.hex()+str(packetNumber)+'.in prove '+tls_conn._clientRandom.hex() + ' '+str(packetNumber)).split())
+
 
     logger.info(
         "Response received for %s %s : %d bytes in %.1f s (%.3f Mbps)"

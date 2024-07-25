@@ -26,8 +26,7 @@ def upload_file():
         print('Proof received! '+filename)
         print('File received successfully.')
         
-        circuit = 'HTTP_String'
-        jrun = (('java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.'+circuit+' pub ../Middlebox/files/transcript_'+random_id+packet_num+'.txt '+client_url[client_id]+' '+random_id+' '+packet_num).split())
+        jrun = (('java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.HTTP_String pub ../Middlebox/files/transcript_'+random_id+packet_num+'.txt '+client_url[client_id]+' '+random_id+' '+packet_num).split())
 
         try:
             subprocess.run(jrun).check_returncode()
@@ -35,7 +34,7 @@ def upload_file():
             print("Wrong java parameters! " + random_id + " " + packet_num)
         
         try:
-            subprocess.run(('../libsnark/build/libsnark/jsnark_interface/run_zkmb files/'+circuit+'.arith files/'+circuit+'_'+random_id+packet_num+'.pub.in verify '+filename).split()).check_returncode()
+            subprocess.run(('../libsnark/build/libsnark/jsnark_interface/run_zkmb files/HTTP_String.arith files/HTTP_String_'+random_id+packet_num+'.pub.in verify '+filename).split()).check_returncode()
         except subprocess.CalledProcessError:
             print("Wrong libsnark parameters! " + random_id + " " + packet_num)
             Response(status=403)
@@ -86,9 +85,8 @@ def return_urllist():
 
 
 
-circuit = 'HTTP_String'
-jrun = (('java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.'+circuit+' pub ../Middlebox/files/test.txt /function circuitgen 1').split())
-lrun = (('../libsnark/build/libsnark/jsnark_interface/run_zkmb ../Middlebox/files/'+circuit+'.arith setup').split())
+jrun = (('java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.HTTP_String pub ../Middlebox/init.txt /function circuitgen 1').split())
+lrun = (('../libsnark/build/libsnark/jsnark_interface/run_zkmb ../Middlebox/files/HTTP_String.arith setup').split())
     
 #if(not os.path.exists('files/'+circuit+'.arith')):
 try:
