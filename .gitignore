@@ -16,3 +16,4 @@ python/http3-client/files
 python/middlebox/files
 
 python/libsnark/build
+python/Tests

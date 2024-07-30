@@ -1,19 +1,8 @@
-import argparse
-import asyncio
-import logging
-import os
-import pickle
-import ssl
-import time
-import json
-import copy
-import subprocess
-import urllib.parse
-import pylsqpack
-import requests
+import argparse, asyncio, logging, os, pickle, ssl, time, json, copy, subprocess, urllib.parse, pylsqpack, requests, sha2_compressions, hashlib, sys
 
-import sha2_compressions
-import hashlib
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.dirname(SCRIPT_DIR))
+from middlebox.trackers import *
 
 from collections import deque
 from typing import BinaryIO, Callable, Deque, Dict, List, Optional, Union, cast
@@ -74,9 +63,16 @@ def find_path_position(request: str, path_encoding: str):
         return -1
 
 
-def get_prover_key():
+def get_prover_key(test):
+
+    c = 0
     while True:
         try:
+            if test:
+                start_time  = time.time()
+                outputs     = [["Request sent", time.time()-start_time, 0]]
+                memory      = [[0, time.time()-start_time, 0]]
+
             response_key = requests.get("http://127.0.0.1:5001/prover-key")
             # response_params = requests.get("http://127.0.0.1:5001/parameters")
         except requests.ConnectionError:
@@ -92,6 +88,13 @@ def get_prover_key():
         file.write(response_key.content)
 
     print("\n\n[+] Prover Key received!\n\n")
+
+    if test:
+        outputs += [["Prover Key received", time.time()-start_time, 0]]
+        memory  += [[0, time.time()-start_time, 0]]
+        return start_time, outputs, memory
+
+    return 0, 0, 0
 
 
 def send_generated_proof(client_random):
@@ -152,6 +155,7 @@ class HttpClient(QuicConnectionProtocol):
             self._http = H3Connection(self._quic)
 
         self._client_random = ''
+        self._allowed_url   = ''
 
     async def get(self, url: str, headers: Optional[Dict] = None) -> Deque[H3Event]:
         """
@@ -285,8 +289,8 @@ async def perform_http_request(
 
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n")
 
-    params = {}
 
+    params = {}
 
     # Plaintext
 
@@ -296,11 +300,16 @@ async def perform_http_request(
         'length': client._quic.packets_transcript_json['CLIENT-ClientHello']['length']
     }
 
-    params['server_hello'] = { 
-        'plaintext': client._quic.packets_transcript_json['SERVER-ServerHello']['plaintext'],
-        'ciphertext': client._quic.packets_transcript_json['SERVER-ServerHello']['ciphertext'],
-        'length': client._quic.packets_transcript_json['SERVER-ServerHello']['length']
-    }
+    while True:
+        try:
+            params['server_hello'] = { 
+                'plaintext': client._quic.packets_transcript_json['SERVER-ServerHello']['plaintext'],
+                'ciphertext': client._quic.packets_transcript_json['SERVER-ServerHello']['ciphertext'],
+                'length': client._quic.packets_transcript_json['SERVER-ServerHello']['length']
+            }
+            break
+        except KeyError:
+            continue
 
     params['client_server_hello'] = { 
         'transcript': params['client_hello']['plaintext'] + params['server_hello']['plaintext'], # ch_sh = pt2_line
@@ -379,6 +388,12 @@ async def perform_http_request(
     params['http3']['request']['path_position'] = int(find_path_position(params['http3']['request']['plaintext'], params['http3']['request']['huffman_path_encoding']) / 2)
 
 
+    # client random = SCID + DCID
+    client._client_random   = client._quic.host_cid.hex() + client._quic._peer_cid.cid.hex()
+    # Allowed URL passed by middlebox
+    client._allowed_url     = params['http3']['request']['huffman_path_encoding']
+
+
     # CLIENT Packet Encryption -> aioquic/quic/packet_builder.py:338 (_end_packet function)
     # SERVER Packet Decryption -> aioquic/quic/connection.py:1137 (receive_datagram function)
 
@@ -416,12 +431,6 @@ async def perform_http_request(
         f.write(f'HTTP3 Request Plaintext: {params["http3"]["request"]["plaintext"]}\n')
         f.write(f'Server HS Secret: {client._quic.tls._server_handshake_secret}\n')
         f.write(f'Client AP Secret: {client._quic.tls._client_application_secret}\n')
-
-    # client random = SCID + DCID
-    client._client_random = client._quic.host_cid.hex() + client._quic._peer_cid.cid.hex()
-
-    subprocess.run((f'java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.HTTP3_String run ./files/params.txt {str(params["http3"]["request"]["huffman_path_encoding"])} {client._client_random} 1').split())
-    subprocess.run((f'../libsnark/build/libsnark/jsnark_interface/run_zkmb files/HTTP3_String.arith files/HTTP3_String_{client._client_random}1.in prove {client._client_random} 1').split())
 
 
     logger.info(
@@ -496,10 +505,10 @@ async def main(
     output_dir: Optional[str],
     local_port: int,
     zero_rtt: bool,
-    print_params: bool,
+    print_params: bool
 ) -> None:
     
-    get_prover_key()
+    start_time, outputs, memory = get_prover_key(args.test)
     # get_parameters()
 
     # parse URL
@@ -532,6 +541,9 @@ async def main(
         _p = urlparse(_p.geturl())
         urls[i] = _p.geturl()
 
+    if args.test:
+        time_placeholder = time.time()-start_time
+
     async with connect(
         host,
         port,
@@ -562,6 +574,40 @@ async def main(
             process_http_pushes(client=client, include=include, output_dir=output_dir)
         client._quic.close(error_code=ErrorCode.H3_NO_ERROR)
 
+
+    if args.test:
+
+        out2        = [["Running circuit", time.time()-start_time, 0]]
+        (out, mem, cpu_times)       = trackRun_cputime((f'java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.HTTP3_String run ./files/params.txt {client._allowed_url} {client._client_random} 1').split(), "xjsnark_proofHTTP3_String", [start_time, 0])
+        out         = out2 + out
+
+        (out3, mem2, cpu_times2)    = trackRun_cputime((f'../libsnark/build/libsnark/jsnark_interface/run_zkmb files/HTTP3_String.arith files/HTTP3_String_{client._client_random}1.in prove {client._client_random} 1').split(), "libsnark_proofHTTP3_String", [start_time, out[-1][2]])
+        out         += out3
+        mem         += mem2
+        cpu_times   += cpu_times2
+
+        for item in out:
+            item[1] += time_placeholder
+        for item in mem:
+            item[1] += time_placeholder
+        outputs += out
+        memory  += mem
+
+        os.makedirs(os.path.dirname(f"../Tests/outputs/full_simulations/HTTP3_String/run{str(args.run)}/"), exist_ok=True)
+        
+        with open(f"../Tests/outputs/full_simulations/HTTP3_String/run{str(args.run)}/cputime_HTTP3_String_libsnark_prove.json", 'w', encoding='utf-8') as f:
+            json.dump(cpu_times, f, ensure_ascii=False, indent=4)
+        with open(f"../Tests/outputs/full_simulations/HTTP3_String/run{str(args.run)}/prove_HTTP3_String_output.json", 'w', encoding='utf-8') as f:
+            json.dump(outputs, f, ensure_ascii=False, indent=4)
+        with open(f"../Tests/outputs/full_simulations/HTTP3_String/run{str(args.run)}/prove_HTTP3_String_memory.json", 'w', encoding='utf-8') as f:
+            json.dump(memory, f, ensure_ascii=False, indent=4)
+
+    else:
+
+        subprocess.run((f'java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.HTTP3_String run ./files/params.txt {client._allowed_url} {client._client_random} 1').split())
+        subprocess.run((f'../libsnark/build/libsnark/jsnark_interface/run_zkmb files/HTTP3_String.arith files/HTTP3_String_{client._client_random}1.in prove {client._client_random} 1').split())
+
+    # perché non si contano i tempi anche nella send della proof?
     send_generated_proof(client._client_random)
 
 
@@ -660,6 +706,12 @@ if __name__ == "__main__":
         "--print-params", 
         action='store_true', 
         help="print or store TLS1.3 parameters"
+    )
+    parser.add_argument(
+        "-t", "--test", action="store_true", help="run test mode"
+    )
+    parser.add_argument(
+        "-r", "--run", type=int, default=0, help="run number"
     )
 
     args = parser.parse_args()
