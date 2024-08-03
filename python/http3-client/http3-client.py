@@ -97,7 +97,11 @@ def get_prover_key(test):
     return 0, 0, 0
 
 
-def send_generated_proof(client_random):
+def send_generated_proof(client_random, test, start_time, outputs, memory):
+
+    if test:
+        outputs     += [["Proof Request sent", time.time()-start_time, 0]]
+        memory      += [[0, time.time()-start_time, 0]]
 
     with open(f'files/proof{client_random}1.bin', 'rb') as file:
         response = requests.post("http://127.0.0.1:5001/prove", files={'proof': file}, headers={'Client-Random': client_random})
@@ -107,6 +111,13 @@ def send_generated_proof(client_random):
             print("Error sending file. Status code:", response.status_code)
 
     print("\n\n[+] Proof sent!\n\n")
+
+    if test:
+        outputs += [["Proof sent", time.time()-start_time, 0]]
+        memory  += [[0, time.time()-start_time, 0]]
+        return outputs, memory
+    
+    return 0, 0
 
 
 
@@ -208,7 +219,13 @@ class HttpClient(QuicConnectionProtocol):
             (b":authority", request.url.authority.encode()),
             (b":path", request.url.full_path.encode()),
             (b"user-agent", USER_AGENT.encode()),
-        ] + [(k.encode(), v.encode()) for (k, v) in request.headers.items()]
+        ] + [(k.encode(), v.encode()) for (k, v) in request.headers.items()] 
+        # + [
+        #     (b"pippo", b"pluto"),
+        #     (b"pluto", b"pippo"),
+        #     (b"jbfwdsfhbv", b"afskjdbgasbas"),
+        #     (b"jbfwdsdasfdv", b"fdskn"),
+        # ]
 
         self._http.send_headers(
             stream_id=stream_id,
@@ -300,16 +317,16 @@ async def perform_http_request(
         'length': client._quic.packets_transcript_json['CLIENT-ClientHello']['length']
     }
 
-    while True:
-        try:
-            params['server_hello'] = { 
-                'plaintext': client._quic.packets_transcript_json['SERVER-ServerHello']['plaintext'],
-                'ciphertext': client._quic.packets_transcript_json['SERVER-ServerHello']['ciphertext'],
-                'length': client._quic.packets_transcript_json['SERVER-ServerHello']['length']
-            }
-            break
-        except KeyError:
-            continue
+    # while True:
+    #     try:
+    params['server_hello'] = { 
+        'plaintext': client._quic.packets_transcript_json['SERVER-ServerHello']['plaintext'],
+        'ciphertext': client._quic.packets_transcript_json['SERVER-ServerHello']['ciphertext'],
+        'length': client._quic.packets_transcript_json['SERVER-ServerHello']['length']
+    }
+    #         break
+    #     except KeyError:
+    #         continue
 
     params['client_server_hello'] = { 
         'transcript': params['client_hello']['plaintext'] + params['server_hello']['plaintext'], # ch_sh = pt2_line
@@ -593,6 +610,14 @@ async def main(
         outputs += out
         memory  += mem
 
+    else:
+        subprocess.run((f'java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.HTTP3_String run ./files/params.txt {client._allowed_url} {client._client_random} 1').split())
+        subprocess.run((f'../libsnark/build/libsnark/jsnark_interface/run_zkmb files/HTTP3_String.arith files/HTTP3_String_{client._client_random}1.in prove {client._client_random} 1').split())
+
+    # perché non si contano i tempi anche nella send della proof?
+    outputs, memory = send_generated_proof(client._client_random, args.test, start_time, outputs, memory)
+
+    if args.test:
         os.makedirs(os.path.dirname(f"../Tests/outputs/full_simulations/HTTP3_String/run{str(args.run)}/"), exist_ok=True)
         
         with open(f"../Tests/outputs/full_simulations/HTTP3_String/run{str(args.run)}/cputime_HTTP3_String_libsnark_prove.json", 'w', encoding='utf-8') as f:
@@ -601,14 +626,6 @@ async def main(
             json.dump(outputs, f, ensure_ascii=False, indent=4)
         with open(f"../Tests/outputs/full_simulations/HTTP3_String/run{str(args.run)}/prove_HTTP3_String_memory.json", 'w', encoding='utf-8') as f:
             json.dump(memory, f, ensure_ascii=False, indent=4)
-
-    else:
-
-        subprocess.run((f'java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.HTTP3_String run ./files/params.txt {client._allowed_url} {client._client_random} 1').split())
-        subprocess.run((f'../libsnark/build/libsnark/jsnark_interface/run_zkmb files/HTTP3_String.arith files/HTTP3_String_{client._client_random}1.in prove {client._client_random} 1').split())
-
-    # perché non si contano i tempi anche nella send della proof?
-    send_generated_proof(client._client_random)
 
 
 if __name__ == "__main__":

@@ -97,14 +97,11 @@ public class HTTP3_String extends CircuitGenerator {
             for (int i = 0; i < http3_request_line.length() / 2; i = i + 1) {
               http3_request_ct[i].mapValue(new BigInteger(http3_request_line.substring(2 * i, 2 * i + 2), 16), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
             }
-            for (int i = http3_request_line.length() / 2; i < MAX_DNS_CT_LEN; i = i + 1) {
+            for (int i = http3_request_line.length() / 2; i < MAX_HTTP3_LEN; i = i + 1) {
               http3_request_ct[i].mapValue(new BigInteger("0"), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
             }
 
             http3_request_head_len.mapValue(new BigInteger(http3_request_head_length_line), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
-
-
-            // PATH POSITION 
 
 
           } catch (Exception ex) {
@@ -117,7 +114,7 @@ public class HTTP3_String extends CircuitGenerator {
             for (int i = 0; i < allowed_url.length() / 2; i++) {
               url_bytes[i].mapValue(new BigInteger(allowed_url.substring(2 * i, 2 * i + 2), 16), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
             }
-            for (int i = allowed_url.length() / 2; i < MAX_URL_LEN; i++) {
+            for (int i = allowed_url.length() / 2; i < MAX_POLICY_LEN; i++) {
               if (i == allowed_url.length() / 2) {
                 url_bytes[i].mapValue(new BigInteger("13"), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
               } else if (i == (allowed_url.length() / 2) + 1) {
@@ -213,14 +210,11 @@ public class HTTP3_String extends CircuitGenerator {
             for (int i = 0; i < http3_request_line.length() / 2; i = i + 1) {
               http3_request_ct[i].mapValue(new BigInteger(http3_request_line.substring(2 * i, 2 * i + 2), 16), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
             }
-            for (int i = http3_request_line.length() / 2; i < MAX_DNS_CT_LEN; i = i + 1) {
+            for (int i = http3_request_line.length() / 2; i < MAX_HTTP3_LEN; i = i + 1) {
               http3_request_ct[i].mapValue(new BigInteger("0"), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
             }
 
             http3_request_head_len.mapValue(new BigInteger(http3_request_head_length_line), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
-
-
-            // PATH POSITION 
 
 
           } catch (Exception ex) {
@@ -233,7 +227,7 @@ public class HTTP3_String extends CircuitGenerator {
             for (int i = 0; i < allowed_url.length() / 2; i++) {
               url_bytes[i].mapValue(new BigInteger(allowed_url.substring(2 * i, 2 * i + 2), 16), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
             }
-            for (int i = allowed_url.length() / 2; i < MAX_URL_LEN; i++) {
+            for (int i = allowed_url.length() / 2; i < MAX_POLICY_LEN; i++) {
               if (i == allowed_url.length() / 2) {
                 url_bytes[i].mapValue(new BigInteger("13"), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
               } else if (i == (allowed_url.length() / 2) + 1) {
@@ -279,13 +273,10 @@ public class HTTP3_String extends CircuitGenerator {
     CertVerify_tail_len = new UnsignedInteger(8, new BigInteger("0"));
     CertVerify_tail_head_len = new UnsignedInteger(8, new BigInteger("0"));
     CertVerifyTail_ServerFinished_ct = (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{128}, 8);
-    http3_request_ct = (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{MAX_DNS_CT_LEN}, 8);
+    http3_request_ct = (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{MAX_HTTP3_LEN}, 8);
     http3_request_head_len = new UnsignedInteger(8, new BigInteger("0"));
-    url_bytes = (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{MAX_URL_LEN}, 8);
+    url_bytes = (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{MAX_POLICY_LEN}, 8);
     url_length = new UnsignedInteger(8, new BigInteger("0"));
-    CertVerify_ct = (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{264}, 8);
-    path_position = new UnsignedInteger(8, new BigInteger("0"));
-    CertVerify_len = new UnsignedInteger(16, new BigInteger("0"));
   }
 
   public UnsignedInteger[] HS;
@@ -299,9 +290,6 @@ public class HTTP3_String extends CircuitGenerator {
   public UnsignedInteger http3_request_head_len;
   public UnsignedInteger[] url_bytes;
   public UnsignedInteger url_length;
-  public UnsignedInteger[] CertVerify_ct;
-  public UnsignedInteger path_position;
-  public UnsignedInteger CertVerify_len;
   public UnsignedInteger[][] values;
   public UnsignedInteger[] string_http;
 
@@ -309,8 +297,8 @@ public class HTTP3_String extends CircuitGenerator {
   public static String transcript_path;
   public static String randomid;
   public static String pktnum;
-  public static final int MAX_DNS_CT_LEN = 300;
-  public static final int MAX_URL_LEN = 100;
+  public static final int MAX_HTTP3_LEN = 300;
+  public static final int MAX_POLICY_LEN = 100;
   @Override
   public void __defineInputs() {
     super.__defineInputs();

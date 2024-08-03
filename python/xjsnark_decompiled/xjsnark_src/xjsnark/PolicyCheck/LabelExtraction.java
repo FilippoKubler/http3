@@ -602,34 +602,132 @@ public class LabelExtraction {
     return first_crlf_index;
   }
 
+  public static UnsignedInteger check_token(UnsignedInteger[] http_msg, UnsignedInteger[] token, UnsignedInteger token_length) {
+    UnsignedInteger secondrow = get_first_crlf_index(http_msg).add(UnsignedInteger.instantiateFrom(8, 2)).copy(8);
+    SmartMemory<UnsignedInteger> http_msg_ram = new SmartMemory(UnsignedInteger.instantiateFrom(8, http_msg), UnsignedInteger.__getClassRef(), new Object[]{"8"});
+    for (int i = 0; i < HTTP_Merkle_Token.TOKEN_LEN; i++) {
+      http_msg_ram.read(secondrow.add(UnsignedInteger.instantiateFrom(8, i)).add(UnsignedInteger.instantiateFrom(8, 14))).forceEqual(token[i]);
+    }
+    return UnsignedInteger.instantiateFrom(1, 1);
+  }
+
+
+
+  // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  // HTTP3_String
+
   // This function verifies that the 8 chars preceding the first_crlf_index in http_msg_ram are 'HTTP/1.1'
-  private static void match_http(SmartMemory<UnsignedInteger> http_msg_ram, int first_char_index, UnsignedInteger[] allowed_url, UnsignedInteger url_len) {
+  private static void match_http(SmartMemory<UnsignedInteger> http_msg_ram, UnsignedInteger first_char_index, UnsignedInteger[] allowed_url, UnsignedInteger url_len) {
 
     // Perform the verification using the input RAM 
     // We require a RAM as we access indices based on the first_crlf_index, which is variable 
     // and not known at the creation of the circuit. 
     // TODO: how to make a for with a variable end: PASS THE LENGTH? 
 
-    for (int i = 0; i < HTTP3_String.MAX_URL_LEN; i++) {
+    for (int i = 0; i < HTTP3_String.MAX_POLICY_LEN; i++) {
       {
-        Bit bit_a0g0uc = UnsignedInteger.instantiateFrom(8, i).isLessThan(url_len).copy();
-        boolean c_a0g0uc = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0g0uc);
-        if (c_a0g0uc) {
-          if (bit_a0g0uc.getConstantValue()) {
+        Bit bit_a0g0bd = UnsignedInteger.instantiateFrom(8, i).isLessThan(url_len).copy();
+        boolean c_a0g0bd = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0g0bd);
+        if (c_a0g0bd) {
+          if (bit_a0g0bd.getConstantValue()) {
             // Check if first 2 bytes after Type (01, 1 byte) and Length (1 byte) are zeros 
-            CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(http_msg_ram.read(first_char_index + i), "http_msg_ram");
-            CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(allowed_url[i], "allowed_url");
-            http_msg_ram.read(first_char_index + i).forceEqual(allowed_url[i]);
+            http_msg_ram.read(first_char_index.add(UnsignedInteger.instantiateFrom(8, i))).forceEqual(allowed_url[i]);
           } else {
 
           }
         } else {
           ConditionalScopeTracker.pushMain();
-          ConditionalScopeTracker.push(bit_a0g0uc);
+          ConditionalScopeTracker.push(bit_a0g0bd);
           // Check if first 2 bytes after Type (01, 1 byte) and Length (1 byte) are zeros 
-          CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(http_msg_ram.read(first_char_index + i), "http_msg_ram");
-          CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(allowed_url[i], "allowed_url");
-          http_msg_ram.read(first_char_index + i).forceEqual(allowed_url[i]);
+          http_msg_ram.read(first_char_index.add(UnsignedInteger.instantiateFrom(8, i))).forceEqual(allowed_url[i]);
+
+          ConditionalScopeTracker.pop();
+
+          ConditionalScopeTracker.push(new Bit(true));
+
+          ConditionalScopeTracker.pop();
+          ConditionalScopeTracker.popMain();
+        }
+
+      }
+      // If verifyEq fails, the proof generation fails 
+    }
+  }
+
+  // The function does the following;
+  // (1) Find the first index where the CRLF characters appear (numbers 13, 10 in decimal)
+  // (2) Verify the 8 chars preceding the first CRLF is 'HTTP/1.1'
+  public static UnsignedInteger[] firewall(UnsignedInteger[] http_msg, UnsignedInteger[] allowed_url, UnsignedInteger url_length) {
+    // Get the first index where CRLF appears 
+
+    // Create a RAM from the http message. 
+    // RAM is required as the first CRLF location is variable 
+    SmartMemory<UnsignedInteger> http_msg_ram = new SmartMemory(UnsignedInteger.instantiateFrom(8, http_msg), UnsignedInteger.__getClassRef(), new Object[]{"8"});
+
+    UnsignedInteger first_char_index = new UnsignedInteger(8, new BigInteger("0"));
+
+    UnsignedInteger length_field_length = http_msg_ram.read(1);
+    UnsignedInteger length_field_length_masked = length_field_length.andBitwise(new BigInteger("" + 0xc0)).copy(8);
+
+    {
+      Bit bit_l0gd = length_field_length_masked.isEqualTo(UnsignedInteger.instantiateFrom(8, 0x40)).copy();
+      boolean c_l0gd = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_l0gd);
+      if (c_l0gd) {
+        if (bit_l0gd.getConstantValue()) {
+          first_char_index.assign(new UnsignedInteger(8, new BigInteger("3")), 8);
+        } else {
+          first_char_index.assign(new UnsignedInteger(8, new BigInteger("2")), 8);
+
+        }
+      } else {
+        ConditionalScopeTracker.pushMain();
+        ConditionalScopeTracker.push(bit_l0gd);
+        first_char_index.assign(new UnsignedInteger(8, new BigInteger("3")), 8);
+
+        ConditionalScopeTracker.pop();
+
+        ConditionalScopeTracker.push(new Bit(true));
+
+        first_char_index.assign(new UnsignedInteger(8, new BigInteger("2")), 8);
+        ConditionalScopeTracker.pop();
+        ConditionalScopeTracker.popMain();
+      }
+
+    }
+
+    // Verifies the http string before the CRLF 
+    match_http(http_msg_ram, first_char_index.copy(8), allowed_url, url_length.copy(8));
+    return http_msg;
+  }
+
+
+
+
+  // Test_HTTP3_String
+
+  private static void match_http_test(SmartMemory<UnsignedInteger> http_msg_ram, UnsignedInteger first_char_index, UnsignedInteger[] allowed_url, UnsignedInteger url_len) {
+
+    // Perform the verification using the input RAM 
+    // We require a RAM as we access indices based on the first_crlf_index, which is variable 
+    // and not known at the creation of the circuit. 
+    // TODO: how to make a for with a variable end: PASS THE LENGTH? 
+
+    for (int i = 0; i < Test_HTTP3_String.MAX_POLICY_LEN; i++) {
+      {
+        Bit bit_a0g0nd = UnsignedInteger.instantiateFrom(8, i).isLessThan(url_len).copy();
+        boolean c_a0g0nd = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0g0nd);
+        if (c_a0g0nd) {
+          if (bit_a0g0nd.getConstantValue()) {
+            // Check if first 2 bytes after Type (01, 1 byte) and Length (1 byte) are zeros 
+            http_msg_ram.read(first_char_index.add(UnsignedInteger.instantiateFrom(8, i))).forceEqual(allowed_url[i]);
+          } else {
+
+          }
+        } else {
+          ConditionalScopeTracker.pushMain();
+          ConditionalScopeTracker.push(bit_a0g0nd);
+          // Check if first 2 bytes after Type (01, 1 byte) and Length (1 byte) are zeros 
+          http_msg_ram.read(first_char_index.add(UnsignedInteger.instantiateFrom(8, i))).forceEqual(allowed_url[i]);
 
           ConditionalScopeTracker.pop();
 
@@ -645,31 +743,47 @@ public class LabelExtraction {
   }
 
 
-  // The function does the following;
-  // (1) Find the first index where the CRLF characters appear (numbers 13, 10 in decimal)
-  // (2) Verify the 8 chars preceding the first CRLF is 'HTTP/1.1'
-  public static UnsignedInteger[] firewall(UnsignedInteger[] http_msg, UnsignedInteger[] allowed_url, UnsignedInteger url_length) {
+  public static UnsignedInteger[] firewall_test(UnsignedInteger[] http_msg, UnsignedInteger[] allowed_url, UnsignedInteger url_length) {
     // Get the first index where CRLF appears 
-    // TODO: could we use the assumption that the first 4 are "GET "? 
-    int first_char_index = 2;
+
     // Create a RAM from the http message. 
     // RAM is required as the first CRLF location is variable 
     SmartMemory<UnsignedInteger> http_msg_ram = new SmartMemory(UnsignedInteger.instantiateFrom(8, http_msg), UnsignedInteger.__getClassRef(), new Object[]{"8"});
 
+    UnsignedInteger first_char_index = new UnsignedInteger(8, new BigInteger("0"));
+
+    UnsignedInteger length_field_length = http_msg_ram.read(1);
+    UnsignedInteger length_field_length_masked = length_field_length.andBitwise(new BigInteger("" + 0xc0)).copy(8);
+
+    {
+      Bit bit_l0qd = length_field_length_masked.isEqualTo(UnsignedInteger.instantiateFrom(8, 0x40)).copy();
+      boolean c_l0qd = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_l0qd);
+      if (c_l0qd) {
+        if (bit_l0qd.getConstantValue()) {
+          first_char_index.assign(new UnsignedInteger(8, new BigInteger("3")), 8);
+        } else {
+          first_char_index.assign(new UnsignedInteger(8, new BigInteger("2")), 8);
+
+        }
+      } else {
+        ConditionalScopeTracker.pushMain();
+        ConditionalScopeTracker.push(bit_l0qd);
+        first_char_index.assign(new UnsignedInteger(8, new BigInteger("3")), 8);
+
+        ConditionalScopeTracker.pop();
+
+        ConditionalScopeTracker.push(new Bit(true));
+
+        first_char_index.assign(new UnsignedInteger(8, new BigInteger("2")), 8);
+        ConditionalScopeTracker.pop();
+        ConditionalScopeTracker.popMain();
+      }
+
+    }
+
     // Verifies the http string before the CRLF 
-    match_http(http_msg_ram, first_char_index, allowed_url, url_length.copy(8));
+    match_http_test(http_msg_ram, first_char_index.copy(8), allowed_url, url_length.copy(8));
     return http_msg;
   }
-
-
-  public static UnsignedInteger check_token(UnsignedInteger[] http_msg, UnsignedInteger[] token, UnsignedInteger token_length) {
-    UnsignedInteger secondrow = get_first_crlf_index(http_msg).add(UnsignedInteger.instantiateFrom(8, 2)).copy(8);
-    SmartMemory<UnsignedInteger> http_msg_ram = new SmartMemory(UnsignedInteger.instantiateFrom(8, http_msg), UnsignedInteger.__getClassRef(), new Object[]{"8"});
-    for (int i = 0; i < HTTP_Merkle_Token.TOKEN_LEN; i++) {
-      http_msg_ram.read(secondrow.add(UnsignedInteger.instantiateFrom(8, i)).add(UnsignedInteger.instantiateFrom(8, 14))).forceEqual(token[i]);
-    }
-    return UnsignedInteger.instantiateFrom(1, 1);
-  }
-
 
 }

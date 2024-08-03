@@ -10,10 +10,9 @@ import java.io.FileReader;
 import java.math.BigInteger;
 import backend.auxTypes.UnsignedInteger;
 import util.Util;
-import xjsnark.tls13_key_schedules.TLSKeySchedule;
 import backend.eval.CircuitEvaluator;
 
-public class Test_HTTP3_String extends CircuitGenerator {
+public class Test_HTTP3_String_Match extends CircuitGenerator {
 
 
 
@@ -26,13 +25,11 @@ public class Test_HTTP3_String extends CircuitGenerator {
     allowed_url = args[2];
     randomid = args[3];
     pktnum = args[4];
-    MAX_HTTP3_LEN = Integer.parseInt(args[5]);
-    MAX_POLICY_LEN = Integer.parseInt(args[6]);
-    new Test_HTTP3_String(args);
+    new Test_HTTP3_String_Match(args);
   }
 
-  public Test_HTTP3_String(String[] s) {
-    super("Test_HTTP3_String");
+  public Test_HTTP3_String_Match(String[] s) {
+    super("Test_HTTP3_String_Match");
     __generateCircuit();
     if (s[0].equals("pub")) {
       System.out.println("Generate public inputs only");
@@ -97,10 +94,10 @@ public class Test_HTTP3_String extends CircuitGenerator {
 
             // REQUEST 
             for (int i = 0; i < http3_request_line.length() / 2; i = i + 1) {
-              http3_request_ct[i].mapValue(new BigInteger(http3_request_line.substring(2 * i, 2 * i + 2), 16), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
+              http3_request[i].mapValue(new BigInteger(http3_request_line.substring(2 * i, 2 * i + 2), 16), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
             }
             for (int i = http3_request_line.length() / 2; i < MAX_HTTP3_LEN; i = i + 1) {
-              http3_request_ct[i].mapValue(new BigInteger("0"), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
+              http3_request[i].mapValue(new BigInteger("0"), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
             }
 
             http3_request_head_len.mapValue(new BigInteger(http3_request_head_length_line), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
@@ -137,12 +134,6 @@ public class Test_HTTP3_String extends CircuitGenerator {
         public void post() {
           System.out.println("Circuit Output: ");
 
-          for (int j = 0; j < values.length; j++) {
-            for (int i = 0; i < values[j].length; i++) {
-              System.out.print(String.format("%1$02x", values[j][i].getValueFromEvaluator(CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator())));
-            }
-            System.out.print("\n");
-          }
 
         }
 
@@ -210,10 +201,10 @@ public class Test_HTTP3_String extends CircuitGenerator {
 
             // REQUEST 
             for (int i = 0; i < http3_request_line.length() / 2; i = i + 1) {
-              http3_request_ct[i].mapValue(new BigInteger(http3_request_line.substring(2 * i, 2 * i + 2), 16), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
+              http3_request[i].mapValue(new BigInteger(http3_request_line.substring(2 * i, 2 * i + 2), 16), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
             }
             for (int i = http3_request_line.length() / 2; i < MAX_HTTP3_LEN; i = i + 1) {
-              http3_request_ct[i].mapValue(new BigInteger("0"), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
+              http3_request[i].mapValue(new BigInteger("0"), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
             }
 
             http3_request_head_len.mapValue(new BigInteger(http3_request_head_length_line), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
@@ -250,12 +241,6 @@ public class Test_HTTP3_String extends CircuitGenerator {
         public void post() {
           System.out.println("Circuit Output: ");
 
-          for (int j = 0; j < values.length; j++) {
-            for (int i = 0; i < values[j].length; i++) {
-              System.out.print(String.format("%1$02x", values[j][i].getValueFromEvaluator(CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator())));
-            }
-            System.out.print("\n");
-          }
 
         }
 
@@ -275,7 +260,7 @@ public class Test_HTTP3_String extends CircuitGenerator {
     CertVerify_tail_len = new UnsignedInteger(8, new BigInteger("0"));
     CertVerify_tail_head_len = new UnsignedInteger(8, new BigInteger("0"));
     CertVerifyTail_ServerFinished_ct = (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{128}, 8);
-    http3_request_ct = (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{MAX_HTTP3_LEN}, 8);
+    http3_request = (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{MAX_HTTP3_LEN}, 8);
     http3_request_head_len = new UnsignedInteger(8, new BigInteger("0"));
     url_bytes = (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{MAX_POLICY_LEN}, 8);
     url_length = new UnsignedInteger(8, new BigInteger("0"));
@@ -288,7 +273,7 @@ public class Test_HTTP3_String extends CircuitGenerator {
   public UnsignedInteger CertVerify_tail_len;
   public UnsignedInteger CertVerify_tail_head_len;
   public UnsignedInteger[] CertVerifyTail_ServerFinished_ct;
-  public UnsignedInteger[] http3_request_ct;
+  public UnsignedInteger[] http3_request;
   public UnsignedInteger http3_request_head_len;
   public UnsignedInteger[] url_bytes;
   public UnsignedInteger url_length;
@@ -299,8 +284,8 @@ public class Test_HTTP3_String extends CircuitGenerator {
   public static String transcript_path;
   public static String randomid;
   public static String pktnum;
-  public static int MAX_HTTP3_LEN;
-  public static int MAX_POLICY_LEN;
+  public static final int MAX_HTTP3_LEN = 300;
+  public static final int MAX_POLICY_LEN = 100;
   @Override
   public void __defineInputs() {
     super.__defineInputs();
@@ -314,7 +299,7 @@ public class Test_HTTP3_String extends CircuitGenerator {
     H2 = (UnsignedInteger[]) UnsignedInteger.createInputArray(CircuitGenerator.__getActiveCircuitGenerator(), Util.getArrayDimensions(H2), 8);
     CertVerifyTail_ServerFinished_ct = (UnsignedInteger[]) UnsignedInteger.createInputArray(CircuitGenerator.__getActiveCircuitGenerator(), Util.getArrayDimensions(CertVerifyTail_ServerFinished_ct), 8);
     url_bytes = (UnsignedInteger[]) UnsignedInteger.createInputArray(CircuitGenerator.__getActiveCircuitGenerator(), Util.getArrayDimensions(url_bytes), 8);
-    http3_request_ct = (UnsignedInteger[]) UnsignedInteger.createInputArray(CircuitGenerator.__getActiveCircuitGenerator(), Util.getArrayDimensions(http3_request_ct), 8);
+    http3_request = (UnsignedInteger[]) UnsignedInteger.createInputArray(CircuitGenerator.__getActiveCircuitGenerator(), Util.getArrayDimensions(http3_request), 8);
 
 
 
@@ -370,8 +355,7 @@ public class Test_HTTP3_String extends CircuitGenerator {
   public void outsource() {
     // ********************* Channel Opening ********************** 
     UnsignedInteger[] SHA_H_Checkpoint_32 = xjsnark.util_and_sha.Util.convert_8_to_32(SHA_H_Checkpoint);
-    values = TLSKeySchedule.quic_get1RTT_HS_new(HS, H2, TR3_len.copy(16), CertVerifyTail_ServerFinished_ct, CertVerify_tail_len.copy(8), SHA_H_Checkpoint_32, http3_request_ct, CertVerify_tail_head_len.copy(8), http3_request_head_len.copy(8));
-    string_http = LabelExtraction.firewall_test(values[0], url_bytes, url_length.copy(8));
+    string_http = LabelExtraction.firewall(http3_request, url_bytes, url_length.copy(8));
   }
   public int[] str_to_array(String str) {
     int[] asciiVal = new int[str.length()];

@@ -475,13 +475,7 @@ public class TLSKeySchedule {
 
 
     // This function decrypts the tail with the specific GCM block number and offset within the block (VERY CONVENIENT) 
-    for (int i = 0; i < CertVerifyTail_ServerFinished_ct.length; i++) {
-      CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(CertVerifyTail_ServerFinished_ct[i], "CertVerifyTail_ServerFinished_ct");
-    }
     UnsignedInteger[] CertVerifyTail_ServerFinished = AES_GCM.aes_gcm_decrypt_128bytes_middle(tk_shs, iv_shs, CertVerifyTail_ServerFinished_ct, gcm_block_number.copy(8), offset.copy(8));
-    for (int i = 0; i < CertVerifyTail_ServerFinished.length; i++) {
-      CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(CertVerifyTail_ServerFinished[i], "CertVerifyTail_ServerFinished");
-    }
 
 
     // This function calculates the hash of TR3 and TR7 where TR7 is TR3 without the last 36 characters 
@@ -502,18 +496,12 @@ public class TLSKeySchedule {
     // Derive the SF value from transcript hash H7 up to Certificate Verify 
     UnsignedInteger[] fk_S = HKDF.quic_hkdf_expand_derive_secret(SHTS, "finished", (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{0}, 8));
     UnsignedInteger[] SF_calculated = HKDF.hmac(fk_S, H_7);
-    for (int i = 0; i < SF_calculated.length; i++) {
-      CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(SF_calculated[i], "SF Calculated");
-    }
 
 
     UnsignedInteger[] SF_transcript = (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{32}, 8);
     SmartMemory<UnsignedInteger> CertVerifyTail_ServerFinished_RAM = new SmartMemory(CertVerifyTail_ServerFinished, UnsignedInteger.__getClassRef(), new Object[]{"8"});
     for (int i = 0; i < 32; i++) {
       SF_transcript[i].assign(CertVerifyTail_ServerFinished_RAM.read(UnsignedInteger.instantiateFrom(8, i).add(CertVerify_tail_len).add(UnsignedInteger.instantiateFrom(8, 4))), 8);
-    }
-    for (int i = 0; i < SF_transcript.length; i++) {
-      CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(SF_transcript[i], "SF_transcript:");
     }
 
 
@@ -538,9 +526,6 @@ public class TLSKeySchedule {
 
 
     UnsignedInteger[] http3_request = AES_GCM.aes_gcm_decrypt_128bytes_middle(tk_capp, iv_capp, http3_request_ct, http3_request_gcm_block_number.copy(8), http3_request_offset.copy(8));
-    for (int i = 0; i < http3_request.length; i++) {
-      CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(http3_request[i], "http3_request");
-    }
 
     return new UnsignedInteger[][]{http3_request, tk_shs, iv_shs, tk_capp, iv_capp, H_3, SF_calculated};
   }
