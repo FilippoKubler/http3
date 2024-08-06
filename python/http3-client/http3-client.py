@@ -73,7 +73,8 @@ def get_prover_key(test):
                 outputs     = [["Request sent", time.time()-start_time, 0]]
                 memory      = [[0, time.time()-start_time, 0]]
 
-            response_key = requests.get("http://127.0.0.1:5001/prover-key")
+            # response_key = requests.get("http://127.0.0.1:5001/prover-key")       # LOCALHOST
+            response_key = requests.get("http://192.168.10.5:5001/prover-key")      # TESTBED
             # response_params = requests.get("http://127.0.0.1:5001/parameters")
         except requests.ConnectionError:
             c+=1
@@ -104,7 +105,8 @@ def send_generated_proof(client_random, test, start_time, outputs, memory):
         memory      += [[0, time.time()-start_time, 0]]
 
     with open(f'files/proof{client_random}1.bin', 'rb') as file:
-        response = requests.post("http://127.0.0.1:5001/prove", files={'proof': file}, headers={'Client-Random': client_random})
+        # response = requests.post("http://127.0.0.1:5001/prove", files={'proof': file}, headers={'Client-Random': client_random})
+        response = requests.post("http://192.168.10.5:5001/prove", files={'proof': file}, headers={'Client-Random': client_random})
         if response.status_code == 200:
             print("File sent successfully.")
         else:
