@@ -431,7 +431,7 @@ ef
 11101111
 """
 
-print(huffman_encoding('127.0.0.1:443'))
+huffman_encoding('127.0.0.1:443')
 
 # input()
 
