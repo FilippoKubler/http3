@@ -5,13 +5,25 @@ from trackers import *
 from flask import Flask, request, send_file, Response, make_response
 
 
-client_list = {"7000": "asdfghc", "9088": "cvbnm", "2344": "hjklo", "5669": "qwerty"} 
-client_url = {"7000": "/function", "9088": "/notfunction", "2344": "/function/run", "5669": "/otherpath"}
-allowed_urls = ["/function/figlet", "/function/test"]
+allowed_urls = [ # OPENFAAS URL : /function/{function_name} - microservices-demo URL : /online-butique/{function_name}
+    "/online-butique/",
+    "/online-butique/product/",
+    "/online-butique/cart/",
+    "/online-butique/setCurrency/",
+    "/online-butique/logout/",
+    "/online-butique/assistant/",
+    "/online-butique/static/",
+    "/online-butique/_healthz/",
+    "/online-butique/product-meta/",
+    "/online-butique/bot/",
+    "/function/figlet/",
+]
 
-merkle=False
-token=False
-anon = True
+# client_list = {"7000": "asdfghc", "9088": "cvbnm", "2344": "hjklo", "5669": "qwerty"} 
+# client_url = {"7000": "/function", "9088": "/notfunction", "2344": "/function/run", "5669": "/otherpath"}
+# merkle=False
+# token=False
+# anon = True
 
 app = Flask(__name__)
 
@@ -25,7 +37,7 @@ def upload_file():
     
     client_random = request.headers['Client-Random']
     file = request.files['proof']
-    filename = 'files/proof'+client_random+'1.bin'
+    filename = f'files/proof{client_random}1.bin'
     file.save(filename)
 
     print("\n\n[+] Proof received!\n\n")
@@ -68,7 +80,7 @@ def upload_file():
             print("Wrong java parameters! " + client_random + " 1")
         
         try:
-            subprocess.run((f'../libsnark/build/libsnark/jsnark_interface/run_zkmb files/HTTP3_String.arith files/HTTP3_String_{client_random}1.pub.in verify files/proof{client_random}1.bin').split()).check_returncode()
+            subprocess.run((f'../libsnark/build/libsnark/jsnark_interface/run_zkmb files/HTTP3_String.arith files/HTTP3_String_{client_random}1.pub.in verify {filename}').split()).check_returncode()
         except subprocess.CalledProcessError:
             print("Wrong libsnark parameters! " + client_random + " 1")
             Response(status=403)
@@ -83,30 +95,30 @@ def return_file():
     return response
         
 
-@app.route('/parameters', methods=['GET'])
-def return_params():
-    if(request.headers['Client-ID'] in client_list):
-        print(request.headers['Client-ID'])
-        response = Response(status=200)
-        response.headers['Allowed-URL'] = client_url[request.headers['Client-ID']]
+# @app.route('/parameters', methods=['GET'])
+# def return_params():
+#     if(request.headers['Client-ID'] in client_list):
+#         print(request.headers['Client-ID'])
+#         response = Response(status=200)
+#         response.headers['Allowed-URL'] = client_url[request.headers['Client-ID']]
 
-        return response
-    else:
-        return Response(status=401)
+#         return response
+#     else:
+#         return Response(status=401)
         
 
-@app.route('/url-list', methods=['GET'])
-def return_urllist():
-    if(request.headers['Client-ID'] in client_list):
-        print(request.headers['Client-ID'])
-        if(anon):
-            #TODO: generate tree and root file
-            response = make_response(send_file("files/anon_tree.txt", mimetype='text/plain'))
-        else:
-            response = make_response(send_file("files/allowlist.txt", mimetype='text/plain'))
-        return response
-    else:
-        return Response(status=401)
+# @app.route('/url-list', methods=['GET'])
+# def return_urllist():
+#     if(request.headers['Client-ID'] in client_list):
+#         print(request.headers['Client-ID'])
+#         if(anon):
+#             #TODO: generate tree and root file
+#             response = make_response(send_file("files/anon_tree.txt", mimetype='text/plain'))
+#         else:
+#             response = make_response(send_file("files/allowlist.txt", mimetype='text/plain'))
+#         return response
+#     else:
+#         return Response(status=401)
 
 
 

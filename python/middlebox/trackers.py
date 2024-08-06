@@ -188,7 +188,7 @@ def run_looped_tests_string(circuit, num):
     # MEASURE MAX_HTTP3_LEN
     print('\n\n', '~'*150)
     print('\nStarting MAX_HTTP3_LEN tests . . .\n')
-    for i in [200, 400, 600, 800, 1000, 1500, 2000]:
+    for i in [100, 250, 400, 700, 1000, 1500, 2000]:
         start_time = time.time()
 
         (out, mem, cpu_time) = trackRun_cputime((f"java -Xmx6G -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.{circuit} run ../Tests/client_params.txt 0000d4d7508a089d5c0b8170dc69a659518c625b6a224c7a9894d35054ff run_req_{str(i)} 1 {str(i)} 100").split(), "", [start_time, 0])
@@ -232,7 +232,7 @@ def run_looped_tests_string(circuit, num):
     # MEASURE MAX_POLICY_LEN
     print('\n\n', '~'*150)
     print('\nStarting MAX_POLICY_LEN tests . . .\n')
-    for i in [30, 45, 60, 75, 80, 95, 110]:
+    for i in [20, 30, 40, 50, 60, 70, 80, 90, 100]: # Minimum path size = /function/a
         start_time = time.time()
 
         (out, mem, cpu_time) = trackRun_cputime((f"java -Xmx6G -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.{circuit} run ../Tests/client_params.txt 0000d4d7508a089d5c0b8170dc69a659518c625b6a224c7a9894d35054ff run_pol_{str(i)} 1 300 {str(i)}").split(), "", [start_time, 0])
@@ -288,31 +288,31 @@ def run_looped_tests_string(circuit, num):
     with open(f'{path}/memory_java_{circuit}_enc_{str(num)}.json', 'w', encoding='utf-8') as f:
         json.dump(mem, f, ensure_ascii=False, indent=4)
     
-    # (out, mem, cpu_time) = trackRun_cputime((f'../libsnark/build/libsnark/jsnark_interface/run_zkmb files/{circuit}.arith setup').split(), "", [time.time(), 0])
-    # out +=[["PK Size", os.path.getsize('files/provKey.bin')]]
-    # out +=[["VK Size", os.path.getsize('files/veriKey.bin')]]
-    # with open(pathls, 'a') as file:
-    #     file.write(str(cpu_time) + '\n')
-    # with open(f'{path}/output_libsnark_setup_{circuit}_enc_{str(num)}.json', 'w', encoding='utf-8') as f:
-    #     json.dump(out, f, ensure_ascii=False, indent=4)
-    # with open(f'{path}/memory_libsnark_setup_{circuit}_enc_{str(num)}.json', 'w', encoding='utf-8') as f:
-    #     json.dump(mem, f, ensure_ascii=False, indent=4)
+    (out, mem, cpu_time) = trackRun_cputime((f'../libsnark/build/libsnark/jsnark_interface/run_zkmb files/{circuit}_Encryption.arith setup').split(), "", [time.time(), 0])
+    out +=[["PK Size", os.path.getsize('files/provKey.bin')]]
+    out +=[["VK Size", os.path.getsize('files/veriKey.bin')]]
+    with open(pathls, 'a') as file:
+        file.write(str(cpu_time) + '\n')
+    with open(f'{path}/output_libsnark_setup_{circuit}_enc_{str(num)}.json', 'w', encoding='utf-8') as f:
+        json.dump(out, f, ensure_ascii=False, indent=4)
+    with open(f'{path}/memory_libsnark_setup_{circuit}_enc_{str(num)}.json', 'w', encoding='utf-8') as f:
+        json.dump(mem, f, ensure_ascii=False, indent=4)
         
-    # (out, mem, cpu_time) = trackRun_cputime((f'../libsnark/build/libsnark/jsnark_interface/run_zkmb files/{circuit}.arith files/{circuit}_run_enc1.in prove run_enc 1').split(), "", [time.time(), 0])
-    # with open(pathlp, 'a') as file:
-    #     file.write(str(cpu_time) + '\n')
-    # with open(f'{path}/output_libsnark_prove_{circuit}_enc_{str(num)}.json', 'w', encoding='utf-8') as f:
-    #     json.dump(out, f, ensure_ascii=False, indent=4)
-    # with open(f'{path}/memory_libsnark_prove_{circuit}_enc_{str(num)}.json', 'w', encoding='utf-8') as f:
-    #     json.dump(mem, f, ensure_ascii=False, indent=4)
+    (out, mem, cpu_time) = trackRun_cputime((f'../libsnark/build/libsnark/jsnark_interface/run_zkmb files/{circuit}_Encryption.arith files/{circuit}_run_enc1.in prove run_enc 1').split(), "", [time.time(), 0])
+    with open(pathlp, 'a') as file:
+        file.write(str(cpu_time) + '\n')
+    with open(f'{path}/output_libsnark_prove_{circuit}_enc_{str(num)}.json', 'w', encoding='utf-8') as f:
+        json.dump(out, f, ensure_ascii=False, indent=4)
+    with open(f'{path}/memory_libsnark_prove_{circuit}_enc_{str(num)}.json', 'w', encoding='utf-8') as f:
+        json.dump(mem, f, ensure_ascii=False, indent=4)
         
-    # (out, mem, cpu_time) = trackRun_cputime((f'../libsnark/build/libsnark/jsnark_interface/run_zkmb files/{circuit}.arith files/{circuit}_run_enc1.in verify files/proofrun_enc1.bin').split(), "", [time.time(), 0])
-    # with open(pathlv, 'a') as file:
-    #     file.write(str(cpu_time) + '\n')
-    # with open(f'{path}/output_libsnark_verify_{circuit}_enc_{str(num)}.json', 'w', encoding='utf-8') as f:
-    #     json.dump(out, f, ensure_ascii=False, indent=4)
-    # with open(f'{path}/memory_libsnark_verify_{circuit}_enc_{str(num)}.json', 'w', encoding='utf-8') as f:
-    #     json.dump(mem, f, ensure_ascii=False, indent=4)
+    (out, mem, cpu_time) = trackRun_cputime((f'../libsnark/build/libsnark/jsnark_interface/run_zkmb files/{circuit}_Encryption.arith files/{circuit}_run_enc1.in verify files/proofrun_enc1.bin').split(), "", [time.time(), 0])
+    with open(pathlv, 'a') as file:
+        file.write(str(cpu_time) + '\n')
+    with open(f'{path}/output_libsnark_verify_{circuit}_enc_{str(num)}.json', 'w', encoding='utf-8') as f:
+        json.dump(out, f, ensure_ascii=False, indent=4)
+    with open(f'{path}/memory_libsnark_verify_{circuit}_enc_{str(num)}.json', 'w', encoding='utf-8') as f:
+        json.dump(mem, f, ensure_ascii=False, indent=4)
 
     print('\nStarting Encryption tests . . .\n')
     print('~'*150, '\n\n')
@@ -334,31 +334,31 @@ def run_looped_tests_string(circuit, num):
     with open(f'{path}/memory_java_{circuit}_mat_{str(num)}.json', 'w', encoding='utf-8') as f:
         json.dump(mem, f, ensure_ascii=False, indent=4)
     
-    # (out, mem, cpu_time) = trackRun_cputime((f'../libsnark/build/libsnark/jsnark_interface/run_zkmb files/{circuit}.arith setup').split(), "", [time.time(), 0])
-    # out +=[["PK Size", os.path.getsize('files/provKey.bin')]]
-    # out +=[["VK Size", os.path.getsize('files/veriKey.bin')]]
-    # with open(pathls, 'a') as file:
-    #     file.write(str(cpu_time) + '\n')
-    # with open(f'{path}/output_libsnark_setup_{circuit}_mat_{str(num)}.json', 'w', encoding='utf-8') as f:
-    #     json.dump(out, f, ensure_ascii=False, indent=4)
-    # with open(f'{path}/memory_libsnark_setup_{circuit}_mat_{str(num)}.json', 'w', encoding='utf-8') as f:
-    #     json.dump(mem, f, ensure_ascii=False, indent=4)
+    (out, mem, cpu_time) = trackRun_cputime((f'../libsnark/build/libsnark/jsnark_interface/run_zkmb files/{circuit}_Match.arith setup').split(), "", [time.time(), 0])
+    out +=[["PK Size", os.path.getsize('files/provKey.bin')]]
+    out +=[["VK Size", os.path.getsize('files/veriKey.bin')]]
+    with open(pathls, 'a') as file:
+        file.write(str(cpu_time) + '\n')
+    with open(f'{path}/output_libsnark_setup_{circuit}_mat_{str(num)}.json', 'w', encoding='utf-8') as f:
+        json.dump(out, f, ensure_ascii=False, indent=4)
+    with open(f'{path}/memory_libsnark_setup_{circuit}_mat_{str(num)}.json', 'w', encoding='utf-8') as f:
+        json.dump(mem, f, ensure_ascii=False, indent=4)
         
-    # (out, mem, cpu_time) = trackRun_cputime((f'../libsnark/build/libsnark/jsnark_interface/run_zkmb files/{circuit}.arith files/{circuit}_run_mat1.in prove run_mat 1').split(), "", [time.time(), 0])
-    # with open(pathlp, 'a') as file:
-    #     file.write(str(cpu_time) + '\n')
-    # with open(f'{path}/output_libsnark_prove_{circuit}_mat_{str(num)}.json', 'w', encoding='utf-8') as f:
-    #     json.dump(out, f, ensure_ascii=False, indent=4)
-    # with open(f'{path}/memory_libsnark_prove_{circuit}_mat_{str(num)}.json', 'w', encoding='utf-8') as f:
-    #     json.dump(mem, f, ensure_ascii=False, indent=4)
+    (out, mem, cpu_time) = trackRun_cputime((f'../libsnark/build/libsnark/jsnark_interface/run_zkmb files/{circuit}_Match.arith files/{circuit}_run_mat1.in prove run_mat 1').split(), "", [time.time(), 0])
+    with open(pathlp, 'a') as file:
+        file.write(str(cpu_time) + '\n')
+    with open(f'{path}/output_libsnark_prove_{circuit}_mat_{str(num)}.json', 'w', encoding='utf-8') as f:
+        json.dump(out, f, ensure_ascii=False, indent=4)
+    with open(f'{path}/memory_libsnark_prove_{circuit}_mat_{str(num)}.json', 'w', encoding='utf-8') as f:
+        json.dump(mem, f, ensure_ascii=False, indent=4)
         
-    # (out, mem, cpu_time) = trackRun_cputime((f'../libsnark/build/libsnark/jsnark_interface/run_zkmb files/{circuit}.arith files/{circuit}_run_mat1.in verify files/proofrun_mat1.bin').split(), "", [time.time(), 0])
-    # with open(pathlv, 'a') as file:
-    #     file.write(str(cpu_time) + '\n')
-    # with open(f'{path}/output_libsnark_verify_{circuit}_mat_{str(num)}.json', 'w', encoding='utf-8') as f:
-    #     json.dump(out, f, ensure_ascii=False, indent=4)
-    # with open(f'{path}/memory_libsnark_verify_{circuit}_mat_{str(num)}.json', 'w', encoding='utf-8') as f:
-    #     json.dump(mem, f, ensure_ascii=False, indent=4)
+    (out, mem, cpu_time) = trackRun_cputime((f'../libsnark/build/libsnark/jsnark_interface/run_zkmb files/{circuit}_Match.arith files/{circuit}_run_mat1.in verify files/proofrun_mat1.bin').split(), "", [time.time(), 0])
+    with open(pathlv, 'a') as file:
+        file.write(str(cpu_time) + '\n')
+    with open(f'{path}/output_libsnark_verify_{circuit}_mat_{str(num)}.json', 'w', encoding='utf-8') as f:
+        json.dump(out, f, ensure_ascii=False, indent=4)
+    with open(f'{path}/memory_libsnark_verify_{circuit}_mat_{str(num)}.json', 'w', encoding='utf-8') as f:
+        json.dump(mem, f, ensure_ascii=False, indent=4)
 
     print('\nStarting Match tests . . .\n')
     print('~'*150, '\n\n')

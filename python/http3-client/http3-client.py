@@ -395,10 +395,10 @@ async def perform_http_request(
     }
 
     # TODO: da verificare se tenere il padding di huffman e come fare il match bit a bit (? = 1111111100, 8 bit a 1, il path sarà sempre "paddato" prima di eventuali parametri)
-    path = urllib.parse.urlparse(url).path
-    path_in_huffman, huffman_padding = huffman_encoding(path)
-    print(f"Path: {path}", f"Huffman Path: {path_in_huffman}", f"Huffman Path not Padded: {path_in_huffman[:-int(huffman_padding/8)*2]}", sep='\n', end='\n\n')
-    print(client._http._allowed_headers, client._http._allowed_headers[:-huffman_padding])
+    # path = urllib.parse.urlparse(url).path
+    # path_in_huffman, huffman_padding = huffman_encoding(path)
+    # print(f"Path: {path}", f"Huffman Path: {path_in_huffman}", f"Huffman Path not Padded: {path_in_huffman[:-int(huffman_padding/8)*2]}", sep='\n', end='\n\n')
+    # print(client._http._allowed_headers, client._http._allowed_headers[:-huffman_padding])
 
     params['http3']['request']['huffman_path_encoding'] = client._http._allowed_headers # [:-huffman_padding] # huffman_encoding(urllib.parse.urlparse(url).path)
 
