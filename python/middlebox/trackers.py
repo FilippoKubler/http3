@@ -244,7 +244,7 @@ def run_looped_tests_string(circuit, num):
     # MEASURE MAX_POLICY_LEN
     print('\n\n', '~'*150)
     print('\nStarting MAX_POLICY_LEN tests . . .\n')
-    for i in [20, 30, 40, 50, 60, 70, 80, 90, 100]: # Minimum path size = /function/a
+    for i in [30, 40, 50, 60, 70, 80, 90, 100]: # Minimum path size = /function/a
         start_time = time.time()
 
         (out, mem, cpu_time) = trackRun_cputime((f"java -Xmx6G -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.{circuit} run ../Tests/client_params.txt 0000d4d7508a089d5c0b8170dc69a659518c625b6a224c7a9894d35054ff run_pol_{str(i)} 1 300 {str(i)}").split(), "", [start_time, 0])
