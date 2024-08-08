@@ -13,7 +13,7 @@ import util.Util;
 import xjsnark.tls13_key_schedules.TLSKeySchedule;
 import backend.eval.CircuitEvaluator;
 
-public class Test_HTTP3_String_Encryption extends CircuitGenerator {
+public class HTTP3_String_static extends CircuitGenerator {
 
 
 
@@ -26,14 +26,11 @@ public class Test_HTTP3_String_Encryption extends CircuitGenerator {
     allowed_url = args[2];
     randomid = args[3];
     pktnum = args[4];
-    MAX_HTTP3_LEN = Integer.parseInt(args[5]);
-    MAX_POLICY_LEN = Integer.parseInt(args[6]);
-
-    new Test_HTTP3_String_Encryption(args);
+    new HTTP3_String_static(args);
   }
 
-  public Test_HTTP3_String_Encryption(String[] s) {
-    super("Test_HTTP3_String_Encryption");
+  public HTTP3_String_static(String[] s) {
+    super("HTTP3_String_static");
     __generateCircuit();
     if (s[0].equals("pub")) {
       System.out.println("Generate public inputs only");
@@ -300,8 +297,8 @@ public class Test_HTTP3_String_Encryption extends CircuitGenerator {
   public static String transcript_path;
   public static String randomid;
   public static String pktnum;
-  public static int MAX_HTTP3_LEN;
-  public static int MAX_POLICY_LEN;
+  public static final int MAX_HTTP3_LEN = 300;
+  public static final int MAX_POLICY_LEN = 100;
   @Override
   public void __defineInputs() {
     super.__defineInputs();
@@ -372,6 +369,7 @@ public class Test_HTTP3_String_Encryption extends CircuitGenerator {
     // ********************* Channel Opening ********************** 
     UnsignedInteger[] SHA_H_Checkpoint_32 = xjsnark.util_and_sha.Util.convert_8_to_32(SHA_H_Checkpoint);
     values = TLSKeySchedule.quic_get1RTT_HS_new(HS, H2, TR3_len.copy(16), CertVerifyTail_ServerFinished_ct, CertVerify_tail_len.copy(8), SHA_H_Checkpoint_32, http3_request_ct, CertVerify_tail_head_len.copy(8), http3_request_head_len.copy(8));
+    string_http = LabelExtraction.firewall_static(values[0], url_bytes, url_length.copy(8));
   }
   public int[] str_to_array(String str) {
     int[] asciiVal = new int[str.length()];

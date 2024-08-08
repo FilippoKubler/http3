@@ -188,7 +188,7 @@ def run_looped_tests_string(circuit, num):
     # MEASURE MAX_HTTP3_LEN
     print('\n\n', '~'*150)
     print('\nStarting MAX_HTTP3_LEN tests . . .\n')
-    for i in [150, 300, 450, 600, 800, 1000, 1500, 2000]:
+    for i in [150, 300, 450, 600, 800, 1000, 1500, 2000]: # 100 troppo basso per la richiesta utilizzata
         start_time = time.time()
 
         (out, mem, cpu_time) = trackRun_cputime((f"java -Xmx6G -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.{circuit} run ../Tests/client_params.txt 0000d4d7508a089d5c0b8170dc69a659518c625b6a224c7a9894d35054ff run_req_{str(i)} 1 {str(i)} 100").split(), "", [start_time, 0])
@@ -231,9 +231,9 @@ def run_looped_tests_string(circuit, num):
         with open(pathj, 'a') as file:
             file.write(str(cpu_time) + '\n')
         print("Tot CPU Time: ",cpu_time)
-        with open(f'{path}/output_java_{circuit}_enc_{str(num)}.json', 'w', encoding='utf-8') as f:
+        with open(f'{path}/output_java_{circuit}_enc_{str(i)}_{str(num)}.json', 'w', encoding='utf-8') as f:
             json.dump(out, f, ensure_ascii=False, indent=4)
-        with open(f'{path}/memory_java_{circuit}_enc_{str(num)}.json', 'w', encoding='utf-8') as f:
+        with open(f'{path}/memory_java_{circuit}_enc_{str(i)}_{str(num)}.json', 'w', encoding='utf-8') as f:
             json.dump(mem, f, ensure_ascii=False, indent=4)
         print('\nEnding Encryption tests . . .\n')
 
@@ -244,7 +244,7 @@ def run_looped_tests_string(circuit, num):
     # MEASURE MAX_POLICY_LEN
     print('\n\n', '~'*150)
     print('\nStarting MAX_POLICY_LEN tests . . .\n')
-    for i in [30, 40, 50, 60, 70, 80, 90, 100]: # Minimum path size = /function/a
+    for i in [30, 40, 50, 60, 70, 80, 90, 100]: # Minimum path size = /function/a (20 troppo basso per la Policy utilizzata, la quale è di 30 bytes)
         start_time = time.time()
 
         (out, mem, cpu_time) = trackRun_cputime((f"java -Xmx6G -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.{circuit} run ../Tests/client_params.txt 0000d4d7508a089d5c0b8170dc69a659518c625b6a224c7a9894d35054ff run_pol_{str(i)} 1 300 {str(i)}").split(), "", [start_time, 0])
@@ -288,9 +288,9 @@ def run_looped_tests_string(circuit, num):
         with open(pathj, 'a') as file:
             file.write(str(cpu_time) + '\n')
         print("Tot CPU Time: ",cpu_time)
-        with open(f'{path}/output_java_{circuit}_mat_{str(num)}.json', 'w', encoding='utf-8') as f:
+        with open(f'{path}/output_java_{circuit}_mat_{str(i)}_{str(num)}.json', 'w', encoding='utf-8') as f:
             json.dump(out, f, ensure_ascii=False, indent=4)
-        with open(f'{path}/memory_java_{circuit}_mat_{str(num)}.json', 'w', encoding='utf-8') as f:
+        with open(f'{path}/memory_java_{circuit}_mat_{str(i)}_{str(num)}.json', 'w', encoding='utf-8') as f:
             json.dump(mem, f, ensure_ascii=False, indent=4)
         print('\nEnding Match tests . . .\n')
             

@@ -701,6 +701,21 @@ public class LabelExtraction {
   }
 
 
+  public static UnsignedInteger[] firewall_static(UnsignedInteger[] http_msg, UnsignedInteger[] allowed_url, UnsignedInteger url_length) {
+    // Get the first index where CRLF appears 
+
+    // Create a RAM from the http message. 
+    // RAM is required as the first CRLF location is variable 
+    SmartMemory<UnsignedInteger> http_msg_ram = new SmartMemory(UnsignedInteger.instantiateFrom(8, http_msg), UnsignedInteger.__getClassRef(), new Object[]{"8"});
+
+    UnsignedInteger first_char_index = new UnsignedInteger(8, new BigInteger("2"));
+
+    // Verifies the http string before the CRLF 
+    match_http(http_msg_ram, first_char_index.copy(8), allowed_url, url_length.copy(8));
+    return http_msg;
+  }
+
+
 
 
   // Test_HTTP3_String
@@ -714,10 +729,10 @@ public class LabelExtraction {
 
     for (int i = 0; i < Test_HTTP3_String.MAX_POLICY_LEN; i++) {
       {
-        Bit bit_a0g0nd = UnsignedInteger.instantiateFrom(8, i).isLessThan(url_len).copy();
-        boolean c_a0g0nd = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0g0nd);
-        if (c_a0g0nd) {
-          if (bit_a0g0nd.getConstantValue()) {
+        Bit bit_a0g0qd = UnsignedInteger.instantiateFrom(8, i).isLessThan(url_len).copy();
+        boolean c_a0g0qd = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0g0qd);
+        if (c_a0g0qd) {
+          if (bit_a0g0qd.getConstantValue()) {
             // Check if first 2 bytes after Type (01, 1 byte) and Length (1 byte) are zeros 
             http_msg_ram.read(first_char_index.add(UnsignedInteger.instantiateFrom(8, i))).forceEqual(allowed_url[i]);
           } else {
@@ -725,7 +740,7 @@ public class LabelExtraction {
           }
         } else {
           ConditionalScopeTracker.pushMain();
-          ConditionalScopeTracker.push(bit_a0g0nd);
+          ConditionalScopeTracker.push(bit_a0g0qd);
           // Check if first 2 bytes after Type (01, 1 byte) and Length (1 byte) are zeros 
           http_msg_ram.read(first_char_index.add(UnsignedInteger.instantiateFrom(8, i))).forceEqual(allowed_url[i]);
 
@@ -756,10 +771,10 @@ public class LabelExtraction {
     UnsignedInteger length_field_length_masked = length_field_length.andBitwise(new BigInteger("" + 0xc0)).copy(8);
 
     {
-      Bit bit_l0qd = length_field_length_masked.isEqualTo(UnsignedInteger.instantiateFrom(8, 0x40)).copy();
-      boolean c_l0qd = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_l0qd);
-      if (c_l0qd) {
-        if (bit_l0qd.getConstantValue()) {
+      Bit bit_l0td = length_field_length_masked.isEqualTo(UnsignedInteger.instantiateFrom(8, 0x40)).copy();
+      boolean c_l0td = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_l0td);
+      if (c_l0td) {
+        if (bit_l0td.getConstantValue()) {
           first_char_index.assign(new UnsignedInteger(8, new BigInteger("3")), 8);
         } else {
           first_char_index.assign(new UnsignedInteger(8, new BigInteger("2")), 8);
@@ -767,7 +782,7 @@ public class LabelExtraction {
         }
       } else {
         ConditionalScopeTracker.pushMain();
-        ConditionalScopeTracker.push(bit_l0qd);
+        ConditionalScopeTracker.push(bit_l0td);
         first_char_index.assign(new UnsignedInteger(8, new BigInteger("3")), 8);
 
         ConditionalScopeTracker.pop();
@@ -799,10 +814,10 @@ public class LabelExtraction {
 
     for (int i = 0; i < Test_HTTP3_String_Match.MAX_POLICY_LEN; i++) {
       {
-        Bit bit_a0g0wd = UnsignedInteger.instantiateFrom(8, i).isLessThan(url_len).copy();
-        boolean c_a0g0wd = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0g0wd);
-        if (c_a0g0wd) {
-          if (bit_a0g0wd.getConstantValue()) {
+        Bit bit_a0g0zd = UnsignedInteger.instantiateFrom(8, i).isLessThan(url_len).copy();
+        boolean c_a0g0zd = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0g0zd);
+        if (c_a0g0zd) {
+          if (bit_a0g0zd.getConstantValue()) {
             // Check if first 2 bytes after Type (01, 1 byte) and Length (1 byte) are zeros 
             http_msg_ram.read(first_char_index.add(UnsignedInteger.instantiateFrom(8, i))).forceEqual(allowed_url[i]);
           } else {
@@ -810,7 +825,7 @@ public class LabelExtraction {
           }
         } else {
           ConditionalScopeTracker.pushMain();
-          ConditionalScopeTracker.push(bit_a0g0wd);
+          ConditionalScopeTracker.push(bit_a0g0zd);
           // Check if first 2 bytes after Type (01, 1 byte) and Length (1 byte) are zeros 
           http_msg_ram.read(first_char_index.add(UnsignedInteger.instantiateFrom(8, i))).forceEqual(allowed_url[i]);
 
@@ -841,10 +856,10 @@ public class LabelExtraction {
     UnsignedInteger length_field_length_masked = length_field_length.andBitwise(new BigInteger("" + 0xc0)).copy(8);
 
     {
-      Bit bit_l0zd = length_field_length_masked.isEqualTo(UnsignedInteger.instantiateFrom(8, 0x40)).copy();
-      boolean c_l0zd = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_l0zd);
-      if (c_l0zd) {
-        if (bit_l0zd.getConstantValue()) {
+      Bit bit_l0ce = length_field_length_masked.isEqualTo(UnsignedInteger.instantiateFrom(8, 0x40)).copy();
+      boolean c_l0ce = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_l0ce);
+      if (c_l0ce) {
+        if (bit_l0ce.getConstantValue()) {
           first_char_index.assign(new UnsignedInteger(8, new BigInteger("3")), 8);
         } else {
           first_char_index.assign(new UnsignedInteger(8, new BigInteger("2")), 8);
@@ -852,7 +867,7 @@ public class LabelExtraction {
         }
       } else {
         ConditionalScopeTracker.pushMain();
-        ConditionalScopeTracker.push(bit_l0zd);
+        ConditionalScopeTracker.push(bit_l0ce);
         first_char_index.assign(new UnsignedInteger(8, new BigInteger("3")), 8);
 
         ConditionalScopeTracker.pop();
