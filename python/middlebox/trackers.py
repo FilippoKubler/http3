@@ -188,7 +188,7 @@ def run_looped_tests_string(circuit, num):
     # MEASURE MAX_HTTP3_LEN
     print('\n\n', '~'*150)
     print('\nStarting MAX_HTTP3_LEN tests . . .\n')
-    for i in [100, 250, 400, 700, 1000, 1500, 2000]:
+    for i in [150, 300, 450, 600, 800, 1000, 1500, 2000]:
         start_time = time.time()
 
         (out, mem, cpu_time) = trackRun_cputime((f"java -Xmx6G -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.{circuit} run ../Tests/client_params.txt 0000d4d7508a089d5c0b8170dc69a659518c625b6a224c7a9894d35054ff run_req_{str(i)} 1 {str(i)} 100").split(), "", [start_time, 0])
