@@ -786,4 +786,90 @@ public class LabelExtraction {
     return http_msg;
   }
 
+
+
+  // Test_HTTP3_String_Match
+
+  private static void match_http_test_match(SmartMemory<UnsignedInteger> http_msg_ram, UnsignedInteger first_char_index, UnsignedInteger[] allowed_url, UnsignedInteger url_len) {
+
+    // Perform the verification using the input RAM 
+    // We require a RAM as we access indices based on the first_crlf_index, which is variable 
+    // and not known at the creation of the circuit. 
+    // TODO: how to make a for with a variable end: PASS THE LENGTH? 
+
+    for (int i = 0; i < Test_HTTP3_String_Match.MAX_POLICY_LEN; i++) {
+      {
+        Bit bit_a0g0wd = UnsignedInteger.instantiateFrom(8, i).isLessThan(url_len).copy();
+        boolean c_a0g0wd = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0g0wd);
+        if (c_a0g0wd) {
+          if (bit_a0g0wd.getConstantValue()) {
+            // Check if first 2 bytes after Type (01, 1 byte) and Length (1 byte) are zeros 
+            http_msg_ram.read(first_char_index.add(UnsignedInteger.instantiateFrom(8, i))).forceEqual(allowed_url[i]);
+          } else {
+
+          }
+        } else {
+          ConditionalScopeTracker.pushMain();
+          ConditionalScopeTracker.push(bit_a0g0wd);
+          // Check if first 2 bytes after Type (01, 1 byte) and Length (1 byte) are zeros 
+          http_msg_ram.read(first_char_index.add(UnsignedInteger.instantiateFrom(8, i))).forceEqual(allowed_url[i]);
+
+          ConditionalScopeTracker.pop();
+
+          ConditionalScopeTracker.push(new Bit(true));
+
+          ConditionalScopeTracker.pop();
+          ConditionalScopeTracker.popMain();
+        }
+
+      }
+      // If verifyEq fails, the proof generation fails 
+    }
+  }
+
+
+  public static UnsignedInteger[] firewall_test_match(UnsignedInteger[] http_msg, UnsignedInteger[] allowed_url, UnsignedInteger url_length) {
+    // Get the first index where CRLF appears 
+
+    // Create a RAM from the http message. 
+    // RAM is required as the first CRLF location is variable 
+    SmartMemory<UnsignedInteger> http_msg_ram = new SmartMemory(UnsignedInteger.instantiateFrom(8, http_msg), UnsignedInteger.__getClassRef(), new Object[]{"8"});
+
+    UnsignedInteger first_char_index = new UnsignedInteger(8, new BigInteger("0"));
+
+    UnsignedInteger length_field_length = http_msg_ram.read(1);
+    UnsignedInteger length_field_length_masked = length_field_length.andBitwise(new BigInteger("" + 0xc0)).copy(8);
+
+    {
+      Bit bit_l0zd = length_field_length_masked.isEqualTo(UnsignedInteger.instantiateFrom(8, 0x40)).copy();
+      boolean c_l0zd = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_l0zd);
+      if (c_l0zd) {
+        if (bit_l0zd.getConstantValue()) {
+          first_char_index.assign(new UnsignedInteger(8, new BigInteger("3")), 8);
+        } else {
+          first_char_index.assign(new UnsignedInteger(8, new BigInteger("2")), 8);
+
+        }
+      } else {
+        ConditionalScopeTracker.pushMain();
+        ConditionalScopeTracker.push(bit_l0zd);
+        first_char_index.assign(new UnsignedInteger(8, new BigInteger("3")), 8);
+
+        ConditionalScopeTracker.pop();
+
+        ConditionalScopeTracker.push(new Bit(true));
+
+        first_char_index.assign(new UnsignedInteger(8, new BigInteger("2")), 8);
+        ConditionalScopeTracker.pop();
+        ConditionalScopeTracker.popMain();
+      }
+
+    }
+
+    // Verifies the http string before the CRLF 
+    match_http_test_match(http_msg_ram, first_char_index.copy(8), allowed_url, url_length.copy(8));
+    return http_msg;
+  }
+
+
 }
