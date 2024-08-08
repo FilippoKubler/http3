@@ -231,9 +231,9 @@ def run_looped_tests_string(circuit, num):
         with open(pathj, 'a') as file:
             file.write(str(cpu_time) + '\n')
         print("Tot CPU Time: ",cpu_time)
-        with open(f'{path}/output_java_{circuit}_enc_{str(num)}.json', 'w', encoding='utf-8') as f:
+        with open(f'{path}/output_java_{circuit}_enc_{str(i)}_{str(num)}.json', 'w', encoding='utf-8') as f:
             json.dump(out, f, ensure_ascii=False, indent=4)
-        with open(f'{path}/memory_java_{circuit}_enc_{str(num)}.json', 'w', encoding='utf-8') as f:
+        with open(f'{path}/memory_java_{circuit}_enc_{str(i)}_{str(num)}.json', 'w', encoding='utf-8') as f:
             json.dump(mem, f, ensure_ascii=False, indent=4)
         print('\nEnding Encryption tests . . .\n')
 
@@ -288,9 +288,9 @@ def run_looped_tests_string(circuit, num):
         with open(pathj, 'a') as file:
             file.write(str(cpu_time) + '\n')
         print("Tot CPU Time: ",cpu_time)
-        with open(f'{path}/output_java_{circuit}_mat_{str(num)}.json', 'w', encoding='utf-8') as f:
+        with open(f'{path}/output_java_{circuit}_mat_{str(i)}_{str(num)}.json', 'w', encoding='utf-8') as f:
             json.dump(out, f, ensure_ascii=False, indent=4)
-        with open(f'{path}/memory_java_{circuit}_mat_{str(num)}.json', 'w', encoding='utf-8') as f:
+        with open(f'{path}/memory_java_{circuit}_mat_{str(i)}_{str(num)}.json', 'w', encoding='utf-8') as f:
             json.dump(mem, f, ensure_ascii=False, indent=4)
         print('\nEnding Match tests . . .\n')
             
