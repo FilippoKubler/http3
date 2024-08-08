@@ -235,6 +235,7 @@ def run_looped_tests_string(circuit, num):
             json.dump(out, f, ensure_ascii=False, indent=4)
         with open(f'{path}/memory_java_{circuit}_enc_{str(num)}.json', 'w', encoding='utf-8') as f:
             json.dump(mem, f, ensure_ascii=False, indent=4)
+        print('\nEnding Encryption tests . . .\n')
 
     print('\nEnding MAX_HTTP3_LEN tests . . .\n')
     print('~'*150, '\n\n')
