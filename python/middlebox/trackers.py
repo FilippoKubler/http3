@@ -191,7 +191,7 @@ def run_looped_tests_string(circuit, num):
     for i in [100, 250, 400, 700, 1000, 1500, 2000]:
         start_time = time.time()
 
-        (out, mem, cpu_time) = trackRun_cputime((f"java -Xmx6G -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.{circuit} run ../Tests/client_params.txt 0000d4d7508d0be25c2e3cb840b8ae34d32cff518c625b6a224c7a9894d35054ff run_req_{str(i)} 1 {str(i)} 100").split(), "", [start_time, 0])
+        (out, mem, cpu_time) = trackRun_cputime((f"java -Xmx6G -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.{circuit} run ../Tests/client_params.txt 0000d4d7508a089d5c0b8170dc69a659518c625b6a224c7a9894d35054ff run_req_{str(i)} 1 {str(i)} 100").split(), "", [start_time, 0])
         with open(pathj, 'a') as file:
             file.write(str(cpu_time) + '\n')
         print("Tot CPU Time: ",cpu_time)
@@ -227,7 +227,7 @@ def run_looped_tests_string(circuit, num):
             json.dump(mem, f, ensure_ascii=False, indent=4)
 
         print('\nStarting Encryption tests . . .\n')
-        (out, mem, cpu_time) = trackRun_cputime((f"java -Xmx6G -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.{circuit}_Encryption run ../Tests/client_params.txt 0000d4d7508d0be25c2e3cb840b8ae34d32cff518c625b6a224c7a9894d35054ff run_enc_{str(i)} 1 {str(i)} 100").split(), "", [start_time, 0])
+        (out, mem, cpu_time) = trackRun_cputime((f"java -Xmx6G -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.{circuit}_Encryption run ../Tests/client_params.txt 0000d4d7508a089d5c0b8170dc69a659518c625b6a224c7a9894d35054ff run_enc_{str(i)} 1 {str(i)} 100").split(), "", [start_time, 0])
         with open(pathj, 'a') as file:
             file.write(str(cpu_time) + '\n')
         print("Tot CPU Time: ",cpu_time)
@@ -247,7 +247,7 @@ def run_looped_tests_string(circuit, num):
     for i in [20, 30, 40, 50, 60, 70, 80, 90, 100]: # Minimum path size = /function/a
         start_time = time.time()
 
-        (out, mem, cpu_time) = trackRun_cputime((f"java -Xmx6G -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.{circuit} run ../Tests/client_params.txt 0000d4d7508d0be25c2e3cb840b8ae34d32cff518c625b6a224c7a9894d35054ff run_pol_{str(i)} 1 300 {str(i)}").split(), "", [start_time, 0])
+        (out, mem, cpu_time) = trackRun_cputime((f"java -Xmx6G -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.{circuit} run ../Tests/client_params.txt 0000d4d7508a089d5c0b8170dc69a659518c625b6a224c7a9894d35054ff run_pol_{str(i)} 1 300 {str(i)}").split(), "", [start_time, 0])
         with open(pathj, 'a') as file:
             file.write(str(cpu_time) + '\n')
         print("Tot CPU Time: ",cpu_time)
@@ -284,7 +284,7 @@ def run_looped_tests_string(circuit, num):
 
 
         print('\nStarting Match tests . . .\n')
-        (out, mem, cpu_time) = trackRun_cputime((f"java -Xmx6G -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.{circuit}_Match run ../Tests/client_params_match.txt 0000d4d7508d0be25c2e3cb840b8ae34d32cff518c625b6a224c7a9894d35054ff run_mat_{str(i)} 1 300 {str(i)} 1").split(), "", [start_time, 0])
+        (out, mem, cpu_time) = trackRun_cputime((f"java -Xmx6G -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.{circuit}_Match run ../Tests/client_params_match.txt 0000d4d7508a089d5c0b8170dc69a659518c625b6a224c7a9894d35054ff run_mat_{str(i)} 1 300 {str(i)} 1").split(), "", [start_time, 0])
         with open(pathj, 'a') as file:
             file.write(str(cpu_time) + '\n')
         print("Tot CPU Time: ",cpu_time)
@@ -304,7 +304,7 @@ def run_looped_tests_string(circuit, num):
     
     start_time = time.time()
 
-    (out, mem, cpu_time) = trackRun_cputime((f"java -Xmx6G -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.{circuit}_Encryption run ../Tests/client_params.txt 0000d4d7508d0be25c2e3cb840b8ae34d32cff518c625b6a224c7a9894d35054ff run_enc 1").split(), "", [start_time, 0])
+    (out, mem, cpu_time) = trackRun_cputime((f"java -Xmx6G -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.{circuit}_Encryption run ../Tests/client_params.txt 0000d4d7508a089d5c0b8170dc69a659518c625b6a224c7a9894d35054ff run_enc 1").split(), "", [start_time, 0])
     with open(pathj, 'a') as file:
         file.write(str(cpu_time) + '\n')
     print("Tot CPU Time: ",cpu_time)
@@ -351,7 +351,7 @@ def run_looped_tests_string(circuit, num):
     
     start_time = time.time()
 
-    (out, mem, cpu_time) = trackRun_cputime((f"java -Xmx6G -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.{circuit}_Match run ../Tests/client_params_match.txt 0000d4d7508d0be25c2e3cb840b8ae34d32cff518c625b6a224c7a9894d35054ff run_mat 1").split(), "", [start_time, 0])
+    (out, mem, cpu_time) = trackRun_cputime((f"java -Xmx6G -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.{circuit}_Match run ../Tests/client_params_match.txt 0000d4d7508a089d5c0b8170dc69a659518c625b6a224c7a9894d35054ff run_mat 1").split(), "", [start_time, 0])
     with open(pathj, 'a') as file:
         file.write(str(cpu_time) + '\n')
     print("Tot CPU Time: ",cpu_time)
