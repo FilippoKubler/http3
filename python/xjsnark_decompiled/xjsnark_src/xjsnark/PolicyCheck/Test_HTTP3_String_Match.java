@@ -25,6 +25,8 @@ public class Test_HTTP3_String_Match extends CircuitGenerator {
     allowed_url = args[2];
     randomid = args[3];
     pktnum = args[4];
+    MAX_HTTP3_LEN = Integer.parseInt(args[5]);
+    MAX_POLICY_LEN = Integer.parseInt(args[6]);
     new Test_HTTP3_String_Match(args);
   }
 
@@ -33,7 +35,7 @@ public class Test_HTTP3_String_Match extends CircuitGenerator {
     __generateCircuit();
     if (s[0].equals("pub")) {
       System.out.println("Generate public inputs only");
-      this.__generatePublicInputs(new SampleRun(randomid+pktnum, true) {
+      this.__generatePublicInputs(new SampleRun("randomid+pktnum", true) {
         public void pre() {
           // **************** Channel Opening Inputs ***************************************** 
           try {
@@ -140,7 +142,7 @@ public class Test_HTTP3_String_Match extends CircuitGenerator {
       });
     } else if (s[0].equals("run")) {
       System.out.println("Normal execution");
-      this.__evaluateSampleRun(new SampleRun(randomid+pktnum, true) {
+      this.__evaluateSampleRun(new SampleRun("randomid+pktnum", true) {
         public void pre() {
           // **************** Channel Opening Inputs ***************************************** 
           try {
@@ -284,8 +286,8 @@ public class Test_HTTP3_String_Match extends CircuitGenerator {
   public static String transcript_path;
   public static String randomid;
   public static String pktnum;
-  public static final int MAX_HTTP3_LEN = 300;
-  public static final int MAX_POLICY_LEN = 100;
+  public static int MAX_HTTP3_LEN;
+  public static int MAX_POLICY_LEN;
   @Override
   public void __defineInputs() {
     super.__defineInputs();
@@ -355,7 +357,7 @@ public class Test_HTTP3_String_Match extends CircuitGenerator {
   public void outsource() {
     // ********************* Channel Opening ********************** 
     UnsignedInteger[] SHA_H_Checkpoint_32 = xjsnark.util_and_sha.Util.convert_8_to_32(SHA_H_Checkpoint);
-    string_http = LabelExtraction.firewall(http3_request, url_bytes, url_length.copy(8));
+    string_http = LabelExtraction.firewall_test_match(http3_request, url_bytes, url_length.copy(8));
   }
   public int[] str_to_array(String str) {
     int[] asciiVal = new int[str.length()];

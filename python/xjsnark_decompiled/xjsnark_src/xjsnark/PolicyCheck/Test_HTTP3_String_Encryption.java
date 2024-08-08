@@ -26,6 +26,9 @@ public class Test_HTTP3_String_Encryption extends CircuitGenerator {
     allowed_url = args[2];
     randomid = args[3];
     pktnum = args[4];
+    MAX_HTTP3_LEN = Integer.parseInt(args[5]);
+    MAX_POLICY_LEN = Integer.parseInt(args[6]);
+
     new Test_HTTP3_String_Encryption(args);
   }
 
@@ -34,7 +37,7 @@ public class Test_HTTP3_String_Encryption extends CircuitGenerator {
     __generateCircuit();
     if (s[0].equals("pub")) {
       System.out.println("Generate public inputs only");
-      this.__generatePublicInputs(new SampleRun(randomid+pktnum, true) {
+      this.__generatePublicInputs(new SampleRun("randomid+pktnum", true) {
         public void pre() {
           // **************** Channel Opening Inputs ***************************************** 
           try {
@@ -147,7 +150,7 @@ public class Test_HTTP3_String_Encryption extends CircuitGenerator {
       });
     } else if (s[0].equals("run")) {
       System.out.println("Normal execution");
-      this.__evaluateSampleRun(new SampleRun(randomid+pktnum, true) {
+      this.__evaluateSampleRun(new SampleRun("randomid+pktnum", true) {
         public void pre() {
           // **************** Channel Opening Inputs ***************************************** 
           try {
@@ -297,8 +300,8 @@ public class Test_HTTP3_String_Encryption extends CircuitGenerator {
   public static String transcript_path;
   public static String randomid;
   public static String pktnum;
-  public static final int MAX_HTTP3_LEN = 300;
-  public static final int MAX_POLICY_LEN = 100;
+  public static int MAX_HTTP3_LEN;
+  public static int MAX_POLICY_LEN;
   @Override
   public void __defineInputs() {
     super.__defineInputs();
