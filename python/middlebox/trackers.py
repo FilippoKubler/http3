@@ -191,7 +191,7 @@ def run_looped_tests_string(circuit, num):
     for i in [100, 250, 400, 700, 1000, 1500, 2000]:
         start_time = time.time()
 
-        (out, mem, cpu_time) = trackRun_cputime((f"java -Xmx6G -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.{circuit} run ../Tests/client_params.txt 0000d4d7508a089d5c0b8170dc69a659518c625b6a224c7a9894d35054ff run_req_{str(i)} 1 {str(i)} 100").split(), "", [start_time, 0])
+        (out, mem, cpu_time) = trackRun_cputime((f"java -Xmx6G -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.{circuit} run ../Tests/client_params.txt 0000d4d7508d0be25c2e3cb840b8ae34d32cff518c625b6a224c7a9894d35054ff run_req_{str(i)} 1 {str(i)} 100").split(), "", [start_time, 0])
         with open(pathj, 'a') as file:
             file.write(str(cpu_time) + '\n')
         print("Tot CPU Time: ",cpu_time)
@@ -224,8 +224,19 @@ def run_looped_tests_string(circuit, num):
         with open(f'{path}/output_libsnark_verify_{circuit}_req_{str(i)}_{str(num)}.json', 'w', encoding='utf-8') as f:
             json.dump(out, f, ensure_ascii=False, indent=4)
         with open(f'{path}/memory_libsnark_verify_{circuit}_req_{str(i)}_{str(num)}.json', 'w', encoding='utf-8') as f:
-            json.dump(mem, f, ensure_ascii=False, indent=4)    
-    print('\nStarting MAX_HTTP3_LEN tests . . .\n')
+            json.dump(mem, f, ensure_ascii=False, indent=4)
+
+        print('\nStarting Encryption tests . . .\n')
+        (out, mem, cpu_time) = trackRun_cputime((f"java -Xmx6G -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.{circuit}_Encryption run ../Tests/client_params.txt 0000d4d7508d0be25c2e3cb840b8ae34d32cff518c625b6a224c7a9894d35054ff run_enc_{str(i)} 1 {str(i)} 100").split(), "", [start_time, 0])
+        with open(pathj, 'a') as file:
+            file.write(str(cpu_time) + '\n')
+        print("Tot CPU Time: ",cpu_time)
+        with open(f'{path}/output_java_{circuit}_enc_{str(num)}.json', 'w', encoding='utf-8') as f:
+            json.dump(out, f, ensure_ascii=False, indent=4)
+        with open(f'{path}/memory_java_{circuit}_enc_{str(num)}.json', 'w', encoding='utf-8') as f:
+            json.dump(mem, f, ensure_ascii=False, indent=4)
+
+    print('\nEnding MAX_HTTP3_LEN tests . . .\n')
     print('~'*150, '\n\n')
 
 
@@ -235,7 +246,7 @@ def run_looped_tests_string(circuit, num):
     for i in [20, 30, 40, 50, 60, 70, 80, 90, 100]: # Minimum path size = /function/a
         start_time = time.time()
 
-        (out, mem, cpu_time) = trackRun_cputime((f"java -Xmx6G -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.{circuit} run ../Tests/client_params.txt 0000d4d7508a089d5c0b8170dc69a659518c625b6a224c7a9894d35054ff run_pol_{str(i)} 1 300 {str(i)}").split(), "", [start_time, 0])
+        (out, mem, cpu_time) = trackRun_cputime((f"java -Xmx6G -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.{circuit} run ../Tests/client_params.txt 0000d4d7508d0be25c2e3cb840b8ae34d32cff518c625b6a224c7a9894d35054ff run_pol_{str(i)} 1 300 {str(i)}").split(), "", [start_time, 0])
         with open(pathj, 'a') as file:
             file.write(str(cpu_time) + '\n')
         print("Tot CPU Time: ",cpu_time)
@@ -269,17 +280,30 @@ def run_looped_tests_string(circuit, num):
             json.dump(out, f, ensure_ascii=False, indent=4)
         with open(f'{path}/memory_libsnark_verify_{circuit}_pol_{str(i)}_{str(num)}.json', 'w', encoding='utf-8') as f:
             json.dump(mem, f, ensure_ascii=False, indent=4)
-    print('\nStarting MAX_POLICY_LEN tests . . .\n')
+
+
+        print('\nStarting Match tests . . .\n')
+        (out, mem, cpu_time) = trackRun_cputime((f"java -Xmx6G -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.{circuit}_Match run ../Tests/client_params_match.txt 0000d4d7508d0be25c2e3cb840b8ae34d32cff518c625b6a224c7a9894d35054ff run_mat_{str(i)} 1 300 {str(i)} 1").split(), "", [start_time, 0])
+        with open(pathj, 'a') as file:
+            file.write(str(cpu_time) + '\n')
+        print("Tot CPU Time: ",cpu_time)
+        with open(f'{path}/output_java_{circuit}_mat_{str(num)}.json', 'w', encoding='utf-8') as f:
+            json.dump(out, f, ensure_ascii=False, indent=4)
+        with open(f'{path}/memory_java_{circuit}_mat_{str(num)}.json', 'w', encoding='utf-8') as f:
+            json.dump(mem, f, ensure_ascii=False, indent=4)
+        print('\nEnding Match tests . . .\n')
+            
+    print('\nEnding MAX_POLICY_LEN tests . . .\n')
     print('~'*150, '\n\n')
 
 
-    # MEASURE Encryption part (TLSKeySchedule.quic_get1RTT_HS_new)
+    # MEASURE Encryption part (TLSKeySchedule.quic_get1RTT_HS_new) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     print('\n\n', '~'*150)
     print('\nStarting Encryption tests . . .\n')
     
     start_time = time.time()
 
-    (out, mem, cpu_time) = trackRun_cputime((f"java -Xmx6G -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.{circuit}_Encryption run ../Tests/client_params.txt 0000d4d7508a089d5c0b8170dc69a659518c625b6a224c7a9894d35054ff run_enc 1").split(), "", [start_time, 0])
+    (out, mem, cpu_time) = trackRun_cputime((f"java -Xmx6G -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.{circuit}_Encryption run ../Tests/client_params.txt 0000d4d7508d0be25c2e3cb840b8ae34d32cff518c625b6a224c7a9894d35054ff run_enc 1").split(), "", [start_time, 0])
     with open(pathj, 'a') as file:
         file.write(str(cpu_time) + '\n')
     print("Tot CPU Time: ",cpu_time)
@@ -314,18 +338,19 @@ def run_looped_tests_string(circuit, num):
     with open(f'{path}/memory_libsnark_verify_{circuit}_enc_{str(num)}.json', 'w', encoding='utf-8') as f:
         json.dump(mem, f, ensure_ascii=False, indent=4)
 
-    print('\nStarting Encryption tests . . .\n')
+    print('\nEnding Encryption tests . . .\n')
     print('~'*150, '\n\n')
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
 
-    # MEASURE Match part (LabelExtraction.firewall)
+    # MEASURE Match part (LabelExtraction.firewall) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     print('\n\n', '~'*150)
     print('\nStarting Match tests . . .\n')
     
     start_time = time.time()
 
-    (out, mem, cpu_time) = trackRun_cputime((f"java -Xmx6G -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.{circuit}_Match run ../Tests/client_params_match.txt 0000d4d7508a089d5c0b8170dc69a659518c625b6a224c7a9894d35054ff run_mat 1").split(), "", [start_time, 0])
+    (out, mem, cpu_time) = trackRun_cputime((f"java -Xmx6G -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.{circuit}_Match run ../Tests/client_params_match.txt 0000d4d7508d0be25c2e3cb840b8ae34d32cff518c625b6a224c7a9894d35054ff run_mat 1").split(), "", [start_time, 0])
     with open(pathj, 'a') as file:
         file.write(str(cpu_time) + '\n')
     print("Tot CPU Time: ",cpu_time)
@@ -360,9 +385,9 @@ def run_looped_tests_string(circuit, num):
     with open(f'{path}/memory_libsnark_verify_{circuit}_mat_{str(num)}.json', 'w', encoding='utf-8') as f:
         json.dump(mem, f, ensure_ascii=False, indent=4)
 
-    print('\nStarting Match tests . . .\n')
+    print('\nEnding Match tests . . .\n')
     print('~'*150, '\n\n')
-
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 if __name__=='__main__':
     run_looped_tests_string('Test_HTTP3_String', sys.argv[1])
