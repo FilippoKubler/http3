@@ -226,6 +226,17 @@ def run_looped_tests_string(circuit, num):
         with open(f'{path}/memory_libsnark_verify_{circuit}_req_{str(i)}_{str(num)}.json', 'w', encoding='utf-8') as f:
             json.dump(mem, f, ensure_ascii=False, indent=4)
 
+
+        (out, mem, cpu_time) = trackRun_cputime((f"java -Xmx6G -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.HTTP3_String_static run ../Tests/client_params.txt 0000d4d7508a089d5c0b8170dc69a659518c625b6a224c7a9894d35054ff run_req_static_{str(i)} 1 {str(i)} 100").split(), "", [start_time, 0])
+        with open(pathj, 'a') as file:
+            file.write(str(cpu_time) + '\n')
+        print("Tot CPU Time: ",cpu_time)
+        with open(f'{path}/output_java_{circuit}_req_static_{str(i)}_{str(num)}.json', 'w', encoding='utf-8') as f:
+            json.dump(out, f, ensure_ascii=False, indent=4)
+        with open(f'{path}/memory_java_{circuit}_req_static_{str(i)}_{str(num)}.json', 'w', encoding='utf-8') as f:
+            json.dump(mem, f, ensure_ascii=False, indent=4)
+
+
         print('\nStarting Encryption tests . . .\n')
         (out, mem, cpu_time) = trackRun_cputime((f"java -Xmx6G -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.{circuit}_Encryption run ../Tests/client_params.txt 0000d4d7508a089d5c0b8170dc69a659518c625b6a224c7a9894d35054ff run_enc_{str(i)} 1 {str(i)} 100").split(), "", [start_time, 0])
         with open(pathj, 'a') as file:
@@ -280,6 +291,16 @@ def run_looped_tests_string(circuit, num):
         with open(f'{path}/output_libsnark_verify_{circuit}_pol_{str(i)}_{str(num)}.json', 'w', encoding='utf-8') as f:
             json.dump(out, f, ensure_ascii=False, indent=4)
         with open(f'{path}/memory_libsnark_verify_{circuit}_pol_{str(i)}_{str(num)}.json', 'w', encoding='utf-8') as f:
+            json.dump(mem, f, ensure_ascii=False, indent=4)
+
+
+        (out, mem, cpu_time) = trackRun_cputime((f"java -Xmx6G -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.HTTP3_String_static run ../Tests/client_params.txt 0000d4d7508a089d5c0b8170dc69a659518c625b6a224c7a9894d35054ff run_pol_static_{str(i)} 1 300 {str(i)}").split(), "", [start_time, 0])
+        with open(pathj, 'a') as file:
+            file.write(str(cpu_time) + '\n')
+        print("Tot CPU Time: ",cpu_time)
+        with open(f'{path}/output_java_{circuit}_pol_static_{str(i)}_{str(num)}.json', 'w', encoding='utf-8') as f:
+            json.dump(out, f, ensure_ascii=False, indent=4)
+        with open(f'{path}/memory_java_{circuit}_pol_static_{str(i)}_{str(num)}.json', 'w', encoding='utf-8') as f:
             json.dump(mem, f, ensure_ascii=False, indent=4)
 
 
