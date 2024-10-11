@@ -617,14 +617,14 @@ public class LabelExtraction {
   // HTTP3_String
 
   // This function verifies that the 8 chars preceding the first_crlf_index in http_msg_ram are 'HTTP/1.1'
-  private static void match_http(SmartMemory<UnsignedInteger> http_msg_ram, UnsignedInteger first_char_index, UnsignedInteger[] allowed_url, UnsignedInteger url_len) {
+  private static void match_http(SmartMemory<UnsignedInteger> http_msg_ram, UnsignedInteger first_char_index, UnsignedInteger[] allowed_url, UnsignedInteger url_len, int max_policy_len) {
 
     // Perform the verification using the input RAM 
     // We require a RAM as we access indices based on the first_crlf_index, which is variable 
     // and not known at the creation of the circuit. 
     // TODO: how to make a for with a variable end: PASS THE LENGTH? 
 
-    for (int i = 0; i < HTTP3_String.MAX_POLICY_LEN; i++) {
+    for (int i = 0; i < max_policy_len; i++) {
       {
         Bit bit_a0g0bd = UnsignedInteger.instantiateFrom(8, i).isLessThan(url_len).copy();
         boolean c_a0g0bd = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_a0g0bd);
@@ -657,7 +657,7 @@ public class LabelExtraction {
   // The function does the following;
   // (1) Find the first index where the CRLF characters appear (numbers 13, 10 in decimal)
   // (2) Verify the 8 chars preceding the first CRLF is 'HTTP/1.1'
-  public static UnsignedInteger[] firewall(UnsignedInteger[] http_msg, UnsignedInteger[] allowed_url, UnsignedInteger url_length) {
+  public static UnsignedInteger[] firewall(UnsignedInteger[] http_msg, UnsignedInteger[] allowed_url, UnsignedInteger url_length, int max_policy_len) {
     // Get the first index where CRLF appears 
 
     // Create a RAM from the http message. 
@@ -696,12 +696,12 @@ public class LabelExtraction {
     }
 
     // Verifies the http string before the CRLF 
-    match_http(http_msg_ram, first_char_index.copy(8), allowed_url, url_length.copy(8));
+    match_http(http_msg_ram, first_char_index.copy(8), allowed_url, url_length.copy(8), max_policy_len);
     return http_msg;
   }
 
 
-  public static UnsignedInteger[] firewall_static(UnsignedInteger[] http_msg, UnsignedInteger[] allowed_url, UnsignedInteger url_length) {
+  public static UnsignedInteger[] firewall_static(UnsignedInteger[] http_msg, UnsignedInteger[] allowed_url, UnsignedInteger url_length, int max_policy_len) {
     // Get the first index where CRLF appears 
 
     // Create a RAM from the http message. 
@@ -711,7 +711,7 @@ public class LabelExtraction {
     UnsignedInteger first_char_index = new UnsignedInteger(8, new BigInteger("2"));
 
     // Verifies the http string before the CRLF 
-    match_http(http_msg_ram, first_char_index.copy(8), allowed_url, url_length.copy(8));
+    match_http(http_msg_ram, first_char_index.copy(8), allowed_url, url_length.copy(8), max_policy_len);
     return http_msg;
   }
 
