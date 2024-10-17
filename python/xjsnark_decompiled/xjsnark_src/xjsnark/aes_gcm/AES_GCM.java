@@ -119,6 +119,25 @@ public class AES_GCM {
     return Util.xor_arrays_prefix(ciphertext, pad_offset, 128);
   }
 
+  public static UnsignedInteger[] aes_gcm_decrypt_POLbytes_middle(UnsignedInteger[] key, UnsignedInteger[] iv, UnsignedInteger[] ciphertext, UnsignedInteger starting_block, UnsignedInteger offset, int max_policy_len) {
+
+    UnsignedInteger[] zero_plaintext = (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{max_policy_len + 16}, 8);
+
+    // this would be the pad staring at starting_block  
+    UnsignedInteger[] pad = aes_gcm_decrypt(key, iv, zero_plaintext, starting_block.copy(8));
+
+
+    UnsignedInteger[] pad_offset = (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{max_policy_len}, 8);
+    SmartMemory<UnsignedInteger> pad_ram = new SmartMemory(UnsignedInteger.instantiateFrom(8, pad), UnsignedInteger.__getClassRef(), new Object[]{"8"});
+
+    // this if the offset of that pad  
+    for (int i = 0; i < max_policy_len; i++) {
+      pad_offset[i].assign(pad_ram.read(UnsignedInteger.instantiateFrom(8, i).add(offset)), 8);
+    }
+
+    return Util.xor_arrays_prefix(ciphertext, pad_offset, max_policy_len);
+  }
+
 
   // The following functions are from the aes example file from xJsnark
   // with only slight modifications.
@@ -214,17 +233,17 @@ public class AES_GCM {
 
       // this is a runtime circuit condition 
       {
-        Bit bit_l0c0fc = hi.copy();
-        boolean c_l0c0fc = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_l0c0fc);
-        if (c_l0c0fc) {
-          if (bit_l0c0fc.getConstantValue()) {
+        Bit bit_l0c0hc = hi.copy();
+        boolean c_l0c0hc = CircuitGenerator.__getActiveCircuitGenerator().__checkConstantState(bit_l0c0hc);
+        if (c_l0c0hc) {
+          if (bit_l0c0hc.getConstantValue()) {
             x.assign(tmp, 8);
           } else {
 
           }
         } else {
           ConditionalScopeTracker.pushMain();
-          ConditionalScopeTracker.push(bit_l0c0fc);
+          ConditionalScopeTracker.push(bit_l0c0hc);
           x.assign(tmp, 8);
 
           ConditionalScopeTracker.pop();

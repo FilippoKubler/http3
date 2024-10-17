@@ -19,25 +19,6 @@
     <classNode dependClassName="xjsnark.util_and_sha.Util" />
     <classNode extendsClassName="backend.structure.CircuitGenerator" />
   </dependency>
-  <dependency className="xjsnark.PolicyCheck.HTTP3_String_static" file="HTTP3_String_static.java">
-    <classNode dependClassName="backend.auxTypes.UnsignedInteger" />
-    <classNode dependClassName="backend.config.Config" />
-    <classNode dependClassName="backend.eval.CircuitEvaluator" />
-    <classNode dependClassName="backend.eval.SampleRun" />
-    <classNode dependClassName="java.io.BufferedReader" />
-    <classNode dependClassName="java.io.FileReader" />
-    <classNode dependClassName="java.lang.Character" />
-    <classNode dependClassName="java.lang.Exception" />
-    <classNode dependClassName="java.lang.Override" />
-    <classNode dependClassName="java.lang.String" />
-    <classNode dependClassName="java.lang.System" />
-    <classNode dependClassName="java.math.BigInteger" />
-    <classNode dependClassName="util.Util" />
-    <classNode dependClassName="xjsnark.PolicyCheck.LabelExtraction" />
-    <classNode dependClassName="xjsnark.tls13_key_schedules.TLSKeySchedule" />
-    <classNode dependClassName="xjsnark.util_and_sha.Util" />
-    <classNode extendsClassName="backend.structure.CircuitGenerator" />
-  </dependency>
   <dependency className="xjsnark.PolicyCheck.HTTP_Merkle" file="HTTP_Merkle.java">
     <classNode dependClassName="backend.auxTypes.FieldElement" />
     <classNode dependClassName="backend.auxTypes.UnsignedInteger" />
@@ -93,7 +74,6 @@
     <classNode dependClassName="java.lang.System" />
     <classNode dependClassName="java.math.BigInteger" />
     <classNode dependClassName="util.Util" />
-    <classNode dependClassName="xjsnark.PolicyCheck.LabelExtraction" />
     <classNode dependClassName="xjsnark.tls13_key_schedules.TLSKeySchedule" />
     <classNode dependClassName="xjsnark.util_and_sha.Util" />
     <classNode extendsClassName="backend.structure.CircuitGenerator" />
@@ -106,7 +86,6 @@
     <classNode dependClassName="backend.structure.CircuitGenerator" />
     <classNode dependClassName="java.lang.Object" />
     <classNode dependClassName="java.math.BigInteger" />
-    <classNode dependClassName="xjsnark.PolicyCheck.HTTP3_String" />
     <classNode dependClassName="xjsnark.PolicyCheck.HTTP_Merkle_Token" />
     <classNode dependClassName="xjsnark.PolicyCheck.Test_HTTP3_String" />
     <classNode dependClassName="xjsnark.PolicyCheck.Test_HTTP3_String_Match" />
@@ -166,6 +145,65 @@
     <classNode dependClassName="java.math.BigInteger" />
     <classNode dependClassName="util.Util" />
     <classNode dependClassName="xjsnark.PolicyCheck.LabelExtraction" />
+    <classNode dependClassName="xjsnark.util_and_sha.Util" />
+    <classNode extendsClassName="backend.structure.CircuitGenerator" />
+  </dependency>
+  <dependency className="xjsnark.PolicyCheck.Test_HTTP3_String_POL" file="Test_HTTP3_String_POL.java">
+    <classNode dependClassName="backend.auxTypes.UnsignedInteger" />
+    <classNode dependClassName="backend.config.Config" />
+    <classNode dependClassName="backend.eval.CircuitEvaluator" />
+    <classNode dependClassName="backend.eval.SampleRun" />
+    <classNode dependClassName="java.io.BufferedReader" />
+    <classNode dependClassName="java.io.FileReader" />
+    <classNode dependClassName="java.lang.Character" />
+    <classNode dependClassName="java.lang.Exception" />
+    <classNode dependClassName="java.lang.Integer" />
+    <classNode dependClassName="java.lang.Override" />
+    <classNode dependClassName="java.lang.String" />
+    <classNode dependClassName="java.lang.System" />
+    <classNode dependClassName="java.math.BigInteger" />
+    <classNode dependClassName="util.Util" />
+    <classNode dependClassName="xjsnark.PolicyCheck.LabelExtraction" />
+    <classNode dependClassName="xjsnark.tls13_key_schedules.TLSKeySchedule" />
+    <classNode dependClassName="xjsnark.util_and_sha.Util" />
+    <classNode extendsClassName="backend.structure.CircuitGenerator" />
+  </dependency>
+  <dependency className="xjsnark.PolicyCheck.Test_HTTP3_String_full" file="Test_HTTP3_String_full.java">
+    <classNode dependClassName="backend.auxTypes.UnsignedInteger" />
+    <classNode dependClassName="backend.config.Config" />
+    <classNode dependClassName="backend.eval.CircuitEvaluator" />
+    <classNode dependClassName="backend.eval.SampleRun" />
+    <classNode dependClassName="java.io.BufferedReader" />
+    <classNode dependClassName="java.io.FileReader" />
+    <classNode dependClassName="java.lang.Character" />
+    <classNode dependClassName="java.lang.Exception" />
+    <classNode dependClassName="java.lang.Integer" />
+    <classNode dependClassName="java.lang.Override" />
+    <classNode dependClassName="java.lang.String" />
+    <classNode dependClassName="java.lang.System" />
+    <classNode dependClassName="java.math.BigInteger" />
+    <classNode dependClassName="util.Util" />
+    <classNode dependClassName="xjsnark.PolicyCheck.LabelExtraction" />
+    <classNode dependClassName="xjsnark.tls13_key_schedules.TLSKeySchedule" />
+    <classNode dependClassName="xjsnark.util_and_sha.Util" />
+    <classNode extendsClassName="backend.structure.CircuitGenerator" />
+  </dependency>
+  <dependency className="xjsnark.PolicyCheck.Test_HTTP3_String_static" file="Test_HTTP3_String_static.java">
+    <classNode dependClassName="backend.auxTypes.UnsignedInteger" />
+    <classNode dependClassName="backend.config.Config" />
+    <classNode dependClassName="backend.eval.CircuitEvaluator" />
+    <classNode dependClassName="backend.eval.SampleRun" />
+    <classNode dependClassName="java.io.BufferedReader" />
+    <classNode dependClassName="java.io.FileReader" />
+    <classNode dependClassName="java.lang.Character" />
+    <classNode dependClassName="java.lang.Exception" />
+    <classNode dependClassName="java.lang.Override" />
+    <classNode dependClassName="java.lang.String" />
+    <classNode dependClassName="java.lang.System" />
+    <classNode dependClassName="java.math.BigInteger" />
+    <classNode dependClassName="util.Util" />
+    <classNode dependClassName="xjsnark.PolicyCheck.LabelExtraction" />
+    <classNode dependClassName="xjsnark.tls13_key_schedules.TLSKeySchedule" />
     <classNode dependClassName="xjsnark.util_and_sha.Util" />
     <classNode extendsClassName="backend.structure.CircuitGenerator" />
   </dependency>

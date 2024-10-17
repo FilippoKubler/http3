@@ -1,23 +1,8 @@
-import sys, math, pyshark, threading
-from datetime import datetime
-
-
-sessions = {}
-status={}
-tcp_streams={}
-transcripts={}
-threads = list()
-append=False
-interface=sys.argv[1] if len(sys.argv)>1 else 'lo'
-#interface='lo'
-now = str(datetime.timestamp(datetime.now())).split(".")[0]
-
-
 # ------------------------------------------------------------
-
-import binascii, hashlib, json
+from datetime import datetime
+import sys, copy, pyshark, threading, binascii, hashlib, json, logging
 from aioquic.tls import CipherSuite, cipher_suite_hash, hkdf_expand_label, hkdf_extract
-from aioquic.quic.quic_datagram_decomposer import quic_length_decoder, extract_tls13_handshake_type, quic_datagram_decomposer
+from aioquic.quic.quic_datagram_decomposer import quic_length_decoder, quic_datagram_decomposer_capture
 from Crypto.Cipher import AES
 
 INITIAL_SALT_VERSION_1  = binascii.unhexlify("38762cf7f55934b34d179ae6a4c80cadccbb7f0a")
@@ -25,6 +10,12 @@ INITIAL_CIPHER_SUITE    = CipherSuite.AES_128_GCM_SHA256
 ALGORITHM               = cipher_suite_hash(INITIAL_CIPHER_SUITE)
 PACKET_NUMBER_LENGTH    = 0
 STREAM_HEADER           = 4
+
+udp_streams     = {}
+now             = str(datetime.timestamp(datetime.now())).split(".")[0]
+interface       = sys.argv[1] if len(sys.argv)>1 else 'lo'
+status          = {}
+threads         = list()
 
 # ------------------------------------------------------------
 
@@ -138,22 +129,22 @@ def decrypt_payload(packet, secret):
 
 
 
-def prepare_parameters(packets_transcript_json):
+def prepare_parameters(packets_transcript_json_capture, stream_id):
     
     params = {}
 
     # Plaintext
 
     params['client_hello'] = { 
-        'plaintext': packets_transcript_json['CLIENT-ClientHello']['plaintext'],
-        'ciphertext': packets_transcript_json['CLIENT-ClientHello']['ciphertext'],
-        'length': packets_transcript_json['CLIENT-ClientHello']['length']
+        'plaintext': packets_transcript_json_capture['CLIENT-ClientHello']['plaintext'],
+        'ciphertext': packets_transcript_json_capture['CLIENT-ClientHello']['ciphertext'],
+        'length': packets_transcript_json_capture['CLIENT-ClientHello']['length']
     }
 
     params['server_hello'] = { 
-        'plaintext': packets_transcript_json['SERVER-ServerHello']['plaintext'],
-        'ciphertext': packets_transcript_json['SERVER-ServerHello']['ciphertext'],
-        'length': packets_transcript_json['SERVER-ServerHello']['length']
+        'plaintext': packets_transcript_json_capture['SERVER-ServerHello']['plaintext'],
+        'ciphertext': packets_transcript_json_capture['SERVER-ServerHello']['ciphertext'],
+        'length': packets_transcript_json_capture['SERVER-ServerHello']['length']
     }
 
     params['client_server_hello'] = { 
@@ -166,12 +157,12 @@ def prepare_parameters(packets_transcript_json):
     # Ciphertext
 
     params['server_finished'] = { 
-        'ciphertext': packets_transcript_json['HANDSHAKE-PACKETS'][-1]['ciphertext'][len(packets_transcript_json['HANDSHAKE-PACKETS'][-1]['ciphertext'])-72:]
+        'ciphertext': packets_transcript_json_capture['HANDSHAKE-PACKETS'][-1]['ciphertext'][len(packets_transcript_json_capture['HANDSHAKE-PACKETS'][-1]['ciphertext'])-72:]
     }
 
     params['extensions_certificate_certificatevrfy_serverfinished'] = { 
-        'transcript': ''.join(elem['ciphertext'] for elem in packets_transcript_json['HANDSHAKE-PACKETS']), # ct3_line
-        'length': int(len(''.join(elem['ciphertext'] for elem in packets_transcript_json['HANDSHAKE-PACKETS'])) / 2)
+        'transcript': ''.join(elem['ciphertext'] for elem in packets_transcript_json_capture['HANDSHAKE-PACKETS']), # ct3_line
+        'length': int(len(''.join(elem['ciphertext'] for elem in packets_transcript_json_capture['HANDSHAKE-PACKETS'])) / 2)
     }
 
     params['handshake'] = {
@@ -182,15 +173,15 @@ def prepare_parameters(packets_transcript_json):
     handshake_tail = get_tail_minus_36(params['handshake']['transcript'])
     params['handshake']['tail'] = handshake_tail[0 : int(len(handshake_tail) - 72)] # 28 byte per completare il blocco con i primi 4 bytes del Server Finished (sha256)
     params['handshake']['tail_length'] = int( len(params['handshake']['tail']) / 2 )
-    params['handshake']['tail_head'] = str(packets_transcript_json['HANDSHAKE-PACKETS'][-1]['CRYPTO-Frame']).split(params['handshake']['tail'])[0] # Compute the head (in the Record Layer) before the tail
+    params['handshake']['tail_head'] = str(packets_transcript_json_capture['HANDSHAKE-PACKETS'][-1]['CRYPTO-Frame']).split(params['handshake']['tail'])[0] # Compute the head (in the Record Layer) before the tail
     params['handshake']['tail_head_length'] = int( len(params['handshake']['tail_head']) / 2 )
 
     params['http3'] = {}
     params['http3']['request'] = {
-        'ciphertext': packets_transcript_json['HTTP3-REQUEST']['ciphertext'],
-        'length': packets_transcript_json['HTTP3-REQUEST']['length'],
+        'ciphertext': packets_transcript_json_capture['HTTP3-REQUEST']['ciphertext'],
+        'length': packets_transcript_json_capture['HTTP3-REQUEST']['length'],
     }
-    params['http3']['request']['head'] = str(packets_transcript_json['HTTP3-REQUEST']['ciphertext']).split(params['http3']['request']['ciphertext'])[0]
+    params['http3']['request']['head'] = str(packets_transcript_json_capture['HTTP3-REQUEST']['STREAM-Frame']).split(params['http3']['request']['ciphertext'])[0]
     params['http3']['request']['head_length'] = int( len(params['http3']['request']['head']) / 2 )
 
 
@@ -206,27 +197,26 @@ def prepare_parameters(packets_transcript_json):
         f.write(params['server_finished']['ciphertext']                                         + '\n') # Server Finished
         f.write(params['extensions_certificate_certificatevrfy_serverfinished']['transcript']   + '\n') # CT_3
         f.write(params['http3']['request']['ciphertext']                                        + '\n') # HTTP3 Request
+        # f.write(params['http3']['request']['head'] + params['http3']['request']['ciphertext']   + '\n') # HTTP3 Request (FULL)
         f.write('0'*32                                                                          + '\n') # H_state_tr7 (Witness)
         f.write(params['handshake']['transcript']                                               + '\n') # TR_3
         f.write(str(params['handshake']['tail_head_length'])                                    + '\n') # Certificate Verify Tail Head Length
         f.write('0'*32                                                                          + '\n') # HTTP3 Request Head Length (Witness)
         # f.write('0'*32                                                                          + '\n') # Path poisition in Request (Witness)
 
+    print('- [', stream_id, '] Parameters saved\n\n')
 
 
 
 def process_with_pyshark(fileName):
     global PACKET_NUMBER_LENGTH
 
-    # tls_session={"CH": False, "SH": False, "S_CS": False, "SF": False, "C_CS": False, "CF": False, "App": 0, "src": '', "dst": ''}
-    # transcript={"RandomID": '', "Cx":'', "Cy":'', "Sx":'', "Sy":'', "ch_sh":'', "ch_sh_len":'',"H2":'',"ServExt_ct":'', "ServExt_ct_EncExt":'',"ServExt_ct_Cert":'',"ServExt_ct_CertVerify":'',"ServExt_ct_SF":'', "ServExt_ct_tail":'', "appl_ct":'', "PacketNumber": '' }
-    # ch_sh = bytearray()
-
     seen_packets = {'CH': False, 'SH': False, 'SH_ACK': False, 'EE-Cert-CertVrfy': False, 'EE-Cert-CertVrfy_ACK': False, 'CertVrfy-SF': False, 'CertVrfy-SF_ACK': False, 'HTTP3-REQUEST': False}
 
     client_connection_id    = b''
     server_connection_id    = b''
     initial                 = True
+    packets_transcript_json_capture = {}
 
     # pcap_data = pyshark.FileCapture(fileName)
     # pcap_data_raw = pyshark.FileCapture(fileName, use_json=True, include_raw=True)
@@ -236,126 +226,173 @@ def process_with_pyshark(fileName):
     #scan all packets in the capture
     # for packet in pcap_data:
     for packet in capture.sniff_continuously():
-        # for layer in packet.layers:
-        # print(packet)
-        layer = packet.quic
 
-        if hasattr(layer, 'packet_length'):
-            
-            print(layer._all_fields, '\n\n')
+        if 'udp' in packet:
+            stream_id = packet.udp.stream
+            if stream_id not in udp_streams:
+                print('[', stream_id, '] New stream')
+                udp_streams[stream_id] = []
+                status[stream_id] = copy.deepcopy(seen_packets)
+            udp_streams[stream_id].append(packet)
 
-            for k,v in seen_packets.items():
-                if v == False and k != 'HTTP3-REQUEST':
-                    break
-            else:
+            if 'quic' in packet:
 
-                encrypted_payload = layer.payload if hasattr(layer, 'payload') else layer.remaining_payload
-                encrypted_payload = toBytes(encrypted_payload)[PACKET_NUMBER_LENGTH+STREAM_HEADER:int(len(toBytes(encrypted_payload)))-16]
+                if status[stream_id]['HTTP3-REQUEST'] == True:
+                    status[stream_id]['HTTP3-REQUEST']  = False
+                    packets_transcript_json_capture     = {}
+                    initial                             = True
+                    # print(status[stream_id], '\n')
+                    print("\n\n*****************************************************************************************************************************************************************************\n\n")
 
-                print("HTTP3 REQUEST -", encrypted_payload.hex(), '\n\n')
+                # for layer in packet.layers:
+                # print(packet.udp, '\n\n')
+                layer = packet.quic
 
-                packets_transcript_json['HTTP3-REQUEST'] = {
-                    'length': len(encrypted_payload),
-                    'ciphertext': encrypted_payload.hex()
-                }
-
-                seen_packets['CH']                      = False
-                seen_packets['SH']                      = False
-                seen_packets['SH_ACK']                  = False
-                seen_packets['EE-Cert-CertVrfy']        = False
-                seen_packets['EE-Cert-CertVrfy_ACK']    = False
-                seen_packets['CertVrfy-SF']             = False
-                seen_packets['CertVrfy-SF_ACK']         = False
-                seen_packets['HTTP3-REQUEST']           = True
-
-                prepare_parameters(packets_transcript_json)
-
-            if hasattr(layer, 'long_packet_type'):
-                
-                match(layer.long_packet_type):
-
-                    case '0': # Initial Packet
+                if hasattr(layer, 'packet_length'):
                     
-                        if hasattr(layer, 'tls_handshake_type'):
-                        
-                            if initial:
-                                client_initial_secret, server_initial_secret = derive_initial_secrets(packet)
-                                initial = False
+                    # print(layer._all_fields, '\n\n')
+
+                    for k,v in status[stream_id].items():
+                        if v == False and k != 'HTTP3-REQUEST':
+                            break
+                    else:
 
 
-                            if layer.tls_handshake_type == '1': # Client Hello
-                                # print("Client Hello -", packet, '~'*100, '\n')
-                                secret                  = client_initial_secret
-                                peer                    = ' CLIENT '
-                                client_connection_id    = toBytes(packet.quic.scid)
-                                seen_packets['CH']      = True
-                            elif layer.tls_handshake_type == '2': # Server Hello
-                                # print("Server Hello -", packet, '~'*100, '\n')
-                                secret                  = server_initial_secret
-                                peer                    = ' SERVER '
-                                server_connection_id    = toBytes(packet.quic.scid)
-                                seen_packets['SH']      = True
+                        encrypted_payload   = layer.payload if hasattr(layer, 'payload') else layer.remaining_payload
+                        stream_payload      = toBytes(encrypted_payload)[PACKET_NUMBER_LENGTH:int(len(toBytes(encrypted_payload)))-16]
+                        encrypted_payload   = toBytes(encrypted_payload)[PACKET_NUMBER_LENGTH+STREAM_HEADER:int(len(toBytes(encrypted_payload)))-16]
+
+                        # print("HTTP3 REQUEST -", encrypted_payload.hex(), '\n\n')
+                        print('+ [', stream_id, '] HTTP3 REQUEST')
 
 
-                            encrypted_payload = toBytes(layer.payload)[:int(len(toBytes(layer.payload)))-16]
-                            # print("Encrypted Payload -", toBytes(layer.payload)[:int(len(toBytes(layer.payload)))-16].hex(), '\n\n')
-                            decrypted_payload = decrypt_payload(packet, secret)
-                            # print("Decrypted Payload -", decrypted_payload.hex(), '\n', '~'*100, '\n')
+                        packets_transcript_json_capture['HTTP3-REQUEST'] = {
+                            'length': len(encrypted_payload),
+                            'ciphertext': encrypted_payload.hex(),
+                            'STREAM-Frame': stream_payload.hex()
+                        }
 
-                            # ack, crypto, padding, stream, connection_close
-                            quic_frames = []
-                            if hasattr(layer, 'ack_ack_delay'):
-                                quic_frames.append({'frame_type': 'ack'})
-                            if hasattr(layer, 'crypto_length'):
-                                quic_frames.append({'frame_type': 'crypto', 'length': int(layer.crypto_length), 'offset': int(layer.crypto_offset)})
-                            if hasattr(layer, 'padding_length'):
-                                quic_frames.append({'frame_type': 'padding'})
+                        status[stream_id]['CH']                      = False
+                        status[stream_id]['SH']                      = False
+                        status[stream_id]['SH_ACK']                  = False
+                        status[stream_id]['EE-Cert-CertVrfy']        = False
+                        status[stream_id]['EE-Cert-CertVrfy_ACK']    = False
+                        status[stream_id]['CertVrfy-SF']             = False
+                        status[stream_id]['CertVrfy-SF_ACK']         = False
+                        status[stream_id]['HTTP3-REQUEST']           = True
 
-                            print(quic_frames)
-
-                            packets_transcript_json = quic_datagram_decomposer(peer, quic_frames, decrypted_payload, encrypted_payload)
-                        
-                        else:
-                            seen_packets['SH_ACK']    = True
-
-                    case '2': # Handshake Packet
-                        # print(layer._all_fields, '\n\n')
-
-                        if toBytes(packet.quic.scid).hex() == server_connection_id.hex():
-                        
-                            encrypted_payload = layer.payload if hasattr(layer, 'payload') else layer.remaining_payload
-                            encrypted_payload = toBytes(encrypted_payload)[PACKET_NUMBER_LENGTH:int(len(toBytes(encrypted_payload)))-16]
-
-                            print("Handshake Packet -", encrypted_payload.hex(), '\n\n')
+                        try:
+                            prepare_parameters(packets_transcript_json_capture, stream_id)
+                        except KeyError as ke:
+                            print("Error in prepare_parameters:", ke, '---> RESET\n')
                             
-                            try:
-                                packets_transcript_json['HANDSHAKE-PACKETS'].append({
-                                    'length': len(encrypted_payload[5:]),               # CRYPTO HEADER di 5 byte perché: Offset nel CRYPTO Header è 1153 (codificato con 2 bytes), mentre length dipende dalla lunghezza del certificato (controllare qual è la dimensione minima)
-                                    'ciphertext': encrypted_payload[5:].hex(),
-                                    'CRYPTO-Frame': encrypted_payload.hex()
-                                })
-                                seen_packets['CertVrfy-SF']    = True
-                            except:
-                                packets_transcript_json['HANDSHAKE-PACKETS'] = []
-                                packets_transcript_json['HANDSHAKE-PACKETS'].append({
-                                    'length': len(encrypted_payload[4:]),               # CRYPTO HEADER di 4 byte perché: QUIC riempie il pacchetto a 1200 byte e quindi CRYPTO Payload è di 1153 (lenght codificato con 2 bytes e offset 1 byte) 
-                                    'ciphertext': encrypted_payload[4:].hex()
-                                })
-                                seen_packets['EE-Cert-CertVrfy']    = True
+
+                    if hasattr(layer, 'long_packet_type'):
                         
-                        elif toBytes(packet.quic.scid).hex() == client_connection_id.hex():
+                        match(layer.long_packet_type):
+
+                            case '0': # Initial Packet
+                            
+                                if hasattr(layer, 'tls_handshake_type'):
                                 
-                            if seen_packets['EE-Cert-CertVrfy_ACK'] == True:
-                                seen_packets['CertVrfy-SF_ACK']         = True
-                            else:
-                                seen_packets['EE-Cert-CertVrfy_ACK']    = True
-                             
-        print(seen_packets, '\n')
-        print("\n*****************************************************************************************************************************************************************************\n\n\n")
- 
+                                    if initial:
+                                        client_initial_secret, server_initial_secret = derive_initial_secrets(packet)
+                                        initial = False
+
+
+                                    if layer.tls_handshake_type == '1': # Client Hello
+                                        # print("Client Hello -", packet, '~'*100, '\n')
+                                        secret                  = client_initial_secret
+                                        peer                    = ' CLIENT '
+                                        client_connection_id    = toBytes(packet.quic.scid)
+                                        status[stream_id]['CH'] = True
+                                        print('+ [', stream_id, '] CLIENT HELLO')
+                                    
+                                    elif layer.tls_handshake_type == '2': # Server Hello
+                                        # print("Server Hello -", packet, '~'*100, '\n')
+                                        secret                  = server_initial_secret
+                                        peer                    = ' SERVER '
+                                        server_connection_id    = toBytes(packet.quic.scid)
+                                        status[stream_id]['SH'] = True
+                                        print('+ [', stream_id, '] SERVER HELLO')
+
+
+                                    encrypted_payload = toBytes(layer.payload)[:int(len(toBytes(layer.payload)))-16]
+                                    # print("Encrypted Payload -", toBytes(layer.payload)[:int(len(toBytes(layer.payload)))-16].hex(), '\n\n')
+                                    decrypted_payload = decrypt_payload(packet, secret)
+                                    # print("Decrypted Payload -", decrypted_payload.hex(), '\n', '~'*100, '\n')
+
+                                    # ack, crypto, padding, stream, connection_close
+                                    quic_frames = []
+                                    if hasattr(layer, 'ack_ack_delay'):
+                                        quic_frames.append({'frame_type': 'ack'})
+                                    if hasattr(layer, 'crypto_length'):
+                                        quic_frames.append({'frame_type': 'crypto', 'length': int(layer.crypto_length), 'offset': int(layer.crypto_offset)})
+                                    if hasattr(layer, 'padding_length'):
+                                        quic_frames.append({'frame_type': 'padding'})
+
+                                    # print(quic_frames)
+                                    
+                                    packets_transcript_json_capture = quic_datagram_decomposer_capture(peer, quic_frames, decrypted_payload, encrypted_payload, packets_transcript_json_capture)
+                                    # print(packets_transcript_json_capture, '\n')
+
+                                else:
+                                    status[stream_id]['SH_ACK']    = True
+                                    print('+ [', stream_id, '] SERVER HELLO ACK')
+
+                            case '2': # Handshake Packet
+                                # print(layer._all_fields, '\n\n')
+
+                                if toBytes(packet.quic.scid).hex() == server_connection_id.hex():
+                                
+                                    encrypted_payload = layer.payload if hasattr(layer, 'payload') else layer.remaining_payload
+                                    encrypted_payload = toBytes(encrypted_payload)[PACKET_NUMBER_LENGTH:int(len(toBytes(encrypted_payload)))-16]
+
+                                    # print("Handshake Packet -", encrypted_payload.hex(), '\n\n')
+                                    
+                                    try:
+                                        packets_transcript_json_capture['HANDSHAKE-PACKETS'].append({
+                                            'length': len(encrypted_payload[5:]),               # CRYPTO HEADER di 5 byte perché: Offset nel CRYPTO Header è 1153 (codificato con 2 bytes), mentre length dipende dalla lunghezza del certificato (controllare qual è la dimensione minima)
+                                            'ciphertext': encrypted_payload[5:].hex(),
+                                            'CRYPTO-Frame': encrypted_payload.hex()
+                                        })
+                                        status[stream_id]['CertVrfy-SF']    = True
+                                        print('+ [', stream_id, '] CertVrfy-SF')
+                                    except:
+                                        packets_transcript_json_capture['HANDSHAKE-PACKETS'] = []
+                                        packets_transcript_json_capture['HANDSHAKE-PACKETS'].append({
+                                            'length': len(encrypted_payload[4:]),               # CRYPTO HEADER di 4 byte perché: QUIC riempie il pacchetto a 1200 byte e quindi CRYPTO Payload è di 1153 (lenght codificato con 2 bytes e offset 1 byte) 
+                                            'ciphertext': encrypted_payload[4:].hex()
+                                        })
+                                        status[stream_id]['EE-Cert-CertVrfy']    = True
+                                        print('+ [', stream_id, '] EE-Cert-CertVrfy')
+                                
+                                elif toBytes(packet.quic.scid).hex() == client_connection_id.hex():
+                                        
+                                    if status[stream_id]['EE-Cert-CertVrfy_ACK'] == True:
+                                        status[stream_id]['CertVrfy-SF_ACK']         = True
+                                        print('+ [', stream_id, '] CertVrfy-SF ACK')
+                                    else:
+                                        status[stream_id]['EE-Cert-CertVrfy_ACK']    = True
+                                        print('+ [', stream_id, '] EE-Cert-CertVrfy ACK')
+                                
+                # print(status[stream_id], '\n')
+                # print("\n*****************************************************************************************************************************************************************************\n\n\n")
+    
 
 
 if __name__ == "__main__":
+
+    try:
+        verbose = True if sys.argv[2] == 'v' else False            
+    except IndexError:
+        verbose = False
+
+    logging.basicConfig(
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+        level=logging.DEBUG if verbose else logging.INFO,
+    )
+
     print("STARTING CAPTURE . . .\n\n")
     # pcap_file = "./files/quic_exchange.pcap"
     pcap_file = "./files/capture.pcapng"

@@ -14,6 +14,8 @@ python/http3-client/__pycache__/
 python/http3-client/files
 
 python/middlebox/files
+python/middlebox/quic-log
+python/middlebox/certs
 python/middlebox/__pycache__
 
 python/libsnark/build

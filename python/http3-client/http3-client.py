@@ -30,7 +30,7 @@ except ImportError:
     uvloop = None
 
 
-from huffman import huffman_encoding, huffman_decoding
+# from huffman import huffman_encoding, huffman_decoding
 
 logger = logging.getLogger("client")
 
@@ -63,19 +63,23 @@ def find_path_position(request: str, path_encoding: str):
         return -1
 
 
-def get_prover_key(test):
+def get_prover_key():
 
     c = 0
     while True:
         try:
-            if test:
+            if args.test:
                 start_time  = time.time()
                 outputs     = [["Request sent", time.time()-start_time, 0]]
                 memory      = [[0, time.time()-start_time, 0]]
 
-            # response_key = requests.get("http://127.0.0.1:5001/prover-key")       # LOCALHOST
-            response_key = requests.get("http://192.168.10.5:5001/prover-key")      # TESTBED
-            # response_params = requests.get("http://127.0.0.1:5001/parameters")
+            response_key = requests.get("http://127.0.0.1:5001/prover-key")       # LOCALHOST
+            # response_key = subprocess.run((f'python http3-client.py -m --ca-certs certs/ca.pem --cipher-suites AES_128_GCM_SHA256 -l keys -q quic-log -i -k https://127.0.0.1:5001/prover-key').split())
+            # print('\n\n')
+            # print('Response:', response_key)
+            # print('\n\n')
+            # input('>')
+            # response_key = requests.get("http://192.168.10.5:5001/prover-key")      # TESTBED
         except requests.ConnectionError:
             c+=1
             if c==1: 
@@ -90,7 +94,7 @@ def get_prover_key(test):
 
     print("\n\n[+] Prover Key received!\n\n")
 
-    if test:
+    if args.test:
         outputs += [["Prover Key received", time.time()-start_time, 0]]
         memory  += [[0, time.time()-start_time, 0]]
         return start_time, outputs, memory
@@ -98,15 +102,15 @@ def get_prover_key(test):
     return 0, 0, 0
 
 
-def send_generated_proof(client_random, test, start_time, outputs, memory):
+def send_generated_proof(client_random, start_time, outputs, memory):
 
-    if test:
+    if args.test:
         outputs     += [["Proof Request sent", time.time()-start_time, 0]]
         memory      += [[0, time.time()-start_time, 0]]
 
     with open(f'files/proof{client_random}1.bin', 'rb') as file:
-        # response = requests.post("http://127.0.0.1:5001/prove", files={'proof': file}, headers={'Client-Random': client_random})
-        response = requests.post("http://192.168.10.5:5001/prove", files={'proof': file}, headers={'Client-Random': client_random})
+        response = requests.post("http://127.0.0.1:5001/prove", files={'proof': file}, headers={'Client-Random': client_random})
+        # response = requests.post("http://192.168.10.5:5001/prove", files={'proof': file}, headers={'Client-Random': client_random})
         if response.status_code == 200:
             print("File sent successfully.")
         else:
@@ -114,7 +118,7 @@ def send_generated_proof(client_random, test, start_time, outputs, memory):
 
     print("\n\n[+] Proof sent!\n\n")
 
-    if test:
+    if args.test:
         outputs += [["Proof sent", time.time()-start_time, 0]]
         memory  += [[0, time.time()-start_time, 0]]
         return outputs, memory
@@ -303,8 +307,13 @@ async def perform_http_request(
             print('\n'.join('{}: {}'.format(k.decode(), v.decode()) for k, v in http_event.headers))
 
         if isinstance(http_event, DataReceived):
-            print(http_event.data.decode())
             octets += len(http_event.data)
+            try:
+                print(http_event.data.decode())
+            except UnicodeDecodeError as err:
+                # print(http_event.data)
+                print('Error:', err)
+                pass
 
     print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n")
 
@@ -388,6 +397,7 @@ async def perform_http_request(
         'ciphertext': client._quic.packets_transcript_json['CLIENT-HTTP3 REQUEST']['ciphertext'],
         'length': client._quic.packets_transcript_json['CLIENT-HTTP3 REQUEST']['length'],         
     }
+    
     params['http3']['request']['head'] = str(client._quic.packets_transcript_json['CLIENT-HTTP3 REQUEST']['STREAM-Frame']).split(params['http3']['request']['ciphertext'])[0]
     params['http3']['request']['head_length'] = int( len(params['http3']['request']['head']) / 2 )
     params['http3']['response'] = {
@@ -434,6 +444,7 @@ async def perform_http_request(
         f.write(params['server_finished']['ciphertext']                                         + '\n') # Server Finished
         f.write(params['extensions_certificate_certificatevrfy_serverfinished']['transcript']   + '\n') # CT_3
         f.write(params['http3']['request']['ciphertext']                                        + '\n') # HTTP3 Request
+        # f.write(params['http3']['request']['head'] + params['http3']['request']['ciphertext']   + '\n') # HTTP3 Request (FULL)
         f.write(params['certificate_verify']['H_state_tr7']                                     + '\n') # H_state_tr7
         f.write(str(params['handshake']['transcript'])                                          + '\n') # TR_3
         f.write(str(params['certificate_verify']['head_length'])                                + '\n') # Certificate Verify Tail Head Length
@@ -527,8 +538,9 @@ async def main(
     print_params: bool
 ) -> None:
     
-    start_time, outputs, memory = get_prover_key(args.test)
-    # get_parameters()
+    if not args.middlebox:
+        start_time, outputs, memory = get_prover_key()
+        # get_parameters()
 
     # parse URL
     parsed = urlparse(urls[0])
@@ -593,41 +605,52 @@ async def main(
             process_http_pushes(client=client, include=include, output_dir=output_dir)
         client._quic.close(error_code=ErrorCode.H3_NO_ERROR)
 
+    if not args.middlebox:
+        if args.test:
 
-    if args.test:
+            out2        = [["Running circuit", time.time()-start_time, 0]]
+            (out, mem, cpu_times)       = trackRun_cputime((f'java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.HTTP3_String run ./files/params.txt {client._allowed_url} {client._client_random} 1').split(), "xjsnark_proofHTTP3_String", [start_time, 0])
+            out         = out2 + out
 
-        out2        = [["Running circuit", time.time()-start_time, 0]]
-        (out, mem, cpu_times)       = trackRun_cputime((f'java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.HTTP3_String run ./files/params.txt {client._allowed_url} {client._client_random} 1').split(), "xjsnark_proofHTTP3_String", [start_time, 0])
-        out         = out2 + out
+            (out3, mem2, cpu_times2)    = trackRun_cputime((f'../libsnark/build/libsnark/jsnark_interface/run_zkmb files/HTTP3_String.arith files/HTTP3_String_{client._client_random}1.in prove {client._client_random} 1').split(), "libsnark_proofHTTP3_String", [start_time, out[-1][2]])
+            out         += out3
+            mem         += mem2
+            cpu_times   += cpu_times2
 
-        (out3, mem2, cpu_times2)    = trackRun_cputime((f'../libsnark/build/libsnark/jsnark_interface/run_zkmb files/HTTP3_String.arith files/HTTP3_String_{client._client_random}1.in prove {client._client_random} 1').split(), "libsnark_proofHTTP3_String", [start_time, out[-1][2]])
-        out         += out3
-        mem         += mem2
-        cpu_times   += cpu_times2
+            for item in out:
+                item[1] += time_placeholder
+            for item in mem:
+                item[1] += time_placeholder
+            outputs += out
+            memory  += mem
 
-        for item in out:
-            item[1] += time_placeholder
-        for item in mem:
-            item[1] += time_placeholder
-        outputs += out
-        memory  += mem
+        else:
 
-    else:
-        subprocess.run((f'java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.HTTP3_String run ./files/params.txt {client._allowed_url} {client._client_random} 1').split())
-        subprocess.run((f'../libsnark/build/libsnark/jsnark_interface/run_zkmb files/HTTP3_String.arith files/HTTP3_String_{client._client_random}1.in prove {client._client_random} 1').split())
+            print("\n\n[+] Generating the Proof ...\n\n")
 
-    # perché non si contano i tempi anche nella send della proof?
-    outputs, memory = send_generated_proof(client._client_random, args.test, start_time, outputs, memory)
+            subprocess.run((f'java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.HTTP3_String run ./files/params.txt {client._allowed_url} {client._client_random} 1').split())
+            subprocess.run((f'../libsnark/build/libsnark/jsnark_interface/run_zkmb files/HTTP3_String.arith files/HTTP3_String_{client._client_random}1.in prove {client._client_random} 1').split())
 
-    if args.test:
-        os.makedirs(os.path.dirname(f"../Tests/outputs/full_simulations/HTTP3_String/run{str(args.run)}/"), exist_ok=True)
-        
-        with open(f"../Tests/outputs/full_simulations/HTTP3_String/run{str(args.run)}/cputime_HTTP3_String_libsnark_prove.json", 'w', encoding='utf-8') as f:
-            json.dump(cpu_times, f, ensure_ascii=False, indent=4)
-        with open(f"../Tests/outputs/full_simulations/HTTP3_String/run{str(args.run)}/prove_HTTP3_String_output.json", 'w', encoding='utf-8') as f:
-            json.dump(outputs, f, ensure_ascii=False, indent=4)
-        with open(f"../Tests/outputs/full_simulations/HTTP3_String/run{str(args.run)}/prove_HTTP3_String_memory.json", 'w', encoding='utf-8') as f:
-            json.dump(memory, f, ensure_ascii=False, indent=4)
+            # FULL
+            # subprocess.run((f'java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.Test_HTTP3_String_full run ./files/params.txt {client._allowed_url} {client._client_random} 1 300 100').split())
+            # subprocess.run((f'../libsnark/build/libsnark/jsnark_interface/run_zkmb files/Test_HTTP3_String_full.arith files/Test_HTTP3_String_full_{client._client_random}1.in prove {client._client_random} 1').split())
+            
+            # POL
+            # subprocess.run((f'java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.Test_HTTP3_String_POL run ./files/params.txt {client._allowed_url} {client._client_random} 1 100').split())
+            # subprocess.run((f'../libsnark/build/libsnark/jsnark_interface/run_zkmb files/Test_HTTP3_String_POL.arith files/Test_HTTP3_String_POL_{client._client_random}1.in prove {client._client_random} 1').split())
+
+        # perché non si contano i tempi anche nella send della proof?
+        outputs, memory = send_generated_proof(client._client_random, start_time, outputs, memory)
+
+        if args.test:
+            os.makedirs(os.path.dirname(f"../Tests/outputs/full_simulations/HTTP3_String/run{str(args.run)}/"), exist_ok=True)
+            
+            with open(f"../Tests/outputs/full_simulations/HTTP3_String/run{str(args.run)}/cputime_HTTP3_String_libsnark_prove.json", 'w', encoding='utf-8') as f:
+                json.dump(cpu_times, f, ensure_ascii=False, indent=4)
+            with open(f"../Tests/outputs/full_simulations/HTTP3_String/run{str(args.run)}/prove_HTTP3_String_output.json", 'w', encoding='utf-8') as f:
+                json.dump(outputs, f, ensure_ascii=False, indent=4)
+            with open(f"../Tests/outputs/full_simulations/HTTP3_String/run{str(args.run)}/prove_HTTP3_String_memory.json", 'w', encoding='utf-8') as f:
+                json.dump(memory, f, ensure_ascii=False, indent=4)
 
 
 if __name__ == "__main__":
@@ -731,6 +754,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "-r", "--run", type=int, default=0, help="run number"
+    )
+    parser.add_argument(
+        "-m", "--middlebox", action="store_true", help="call to the middlebox"
     )
 
     args = parser.parse_args()
