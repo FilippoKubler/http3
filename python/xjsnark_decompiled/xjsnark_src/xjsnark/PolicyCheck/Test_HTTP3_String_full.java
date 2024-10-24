@@ -13,7 +13,7 @@ import util.Util;
 import xjsnark.tls13_key_schedules.TLSKeySchedule;
 import backend.eval.CircuitEvaluator;
 
-public class HTTP3_String_static extends CircuitGenerator {
+public class Test_HTTP3_String_full extends CircuitGenerator {
 
 
 
@@ -26,11 +26,13 @@ public class HTTP3_String_static extends CircuitGenerator {
     allowed_url = args[2];
     randomid = args[3];
     pktnum = args[4];
-    new HTTP3_String_static(args);
+    MAX_HTTP3_LEN = Integer.parseInt(args[5]);
+    MAX_POLICY_LEN = Integer.parseInt(args[6]);
+    new Test_HTTP3_String_full(args);
   }
 
-  public HTTP3_String_static(String[] s) {
-    super("HTTP3_String_static");
+  public Test_HTTP3_String_full(String[] s) {
+    super("Test_HTTP3_String_full");
     __generateCircuit();
     if (s[0].equals("pub")) {
       System.out.println("Generate public inputs only");
@@ -111,6 +113,7 @@ public class HTTP3_String_static extends CircuitGenerator {
           // ALLOWED URL 
           try {
             // Url string conversion and assignment 
+            System.out.print("url_bytes: ");
             for (int i = 0; i < allowed_url.length() / 2; i++) {
               url_bytes[i].mapValue(new BigInteger(allowed_url.substring(2 * i, 2 * i + 2), 16), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
             }
@@ -224,6 +227,7 @@ public class HTTP3_String_static extends CircuitGenerator {
           // ALLOWED URL 
           try {
             // Url string conversion and assignment 
+            System.out.print("url_bytes: ");
             for (int i = 0; i < allowed_url.length() / 2; i++) {
               url_bytes[i].mapValue(new BigInteger(allowed_url.substring(2 * i, 2 * i + 2), 16), CircuitGenerator.__getActiveCircuitGenerator().__getCircuitEvaluator());
             }
@@ -297,8 +301,8 @@ public class HTTP3_String_static extends CircuitGenerator {
   public static String transcript_path;
   public static String randomid;
   public static String pktnum;
-  public static final int MAX_HTTP3_LEN = 300;
-  public static final int MAX_POLICY_LEN = 100;
+  public static int MAX_HTTP3_LEN;
+  public static int MAX_POLICY_LEN;
   @Override
   public void __defineInputs() {
     super.__defineInputs();
@@ -368,8 +372,8 @@ public class HTTP3_String_static extends CircuitGenerator {
   public void outsource() {
     // ********************* Channel Opening ********************** 
     UnsignedInteger[] SHA_H_Checkpoint_32 = xjsnark.util_and_sha.Util.convert_8_to_32(SHA_H_Checkpoint);
-    values = TLSKeySchedule.quic_get1RTT_HS_new(HS, H2, TR3_len.copy(16), CertVerifyTail_ServerFinished_ct, CertVerify_tail_len.copy(8), SHA_H_Checkpoint_32, http3_request_ct, CertVerify_tail_head_len.copy(8), http3_request_head_len.copy(8));
-    string_http = LabelExtraction.firewall_static(values[0], url_bytes, url_length.copy(8));
+    values = TLSKeySchedule.quic_get1RTT_HS_full(HS, H2, TR3_len.copy(16), CertVerifyTail_ServerFinished_ct, CertVerify_tail_len.copy(8), SHA_H_Checkpoint_32, http3_request_ct, CertVerify_tail_head_len.copy(8), http3_request_head_len.copy(8));
+    string_http = LabelExtraction.firewall(values[0], url_bytes, url_length.copy(8), MAX_POLICY_LEN);
   }
   public int[] str_to_array(String str) {
     int[] asciiVal = new int[str.length()];

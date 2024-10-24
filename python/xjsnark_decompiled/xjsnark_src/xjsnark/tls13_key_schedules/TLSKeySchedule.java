@@ -439,6 +439,8 @@ public class TLSKeySchedule {
   }
 
 
+
+
   public static UnsignedInteger[][] quic_get1RTT_HS_new(UnsignedInteger[] HS, UnsignedInteger[] H2, UnsignedInteger TR3_len, UnsignedInteger[] CertVerifyTail_ServerFinished_ct, UnsignedInteger CertVerify_tail_len, UnsignedInteger[] SHA_H_Checkpoint, UnsignedInteger[] http3_request_ct, UnsignedInteger CertVerify_tail_head_len, UnsignedInteger http3_request_head_len) {
 
     // INPUTS ARE CORRECT 
@@ -531,6 +533,203 @@ public class TLSKeySchedule {
   }
 
 
+
+
+  public static UnsignedInteger[][] quic_get1RTT_HS_full(UnsignedInteger[] HS, UnsignedInteger[] H2, UnsignedInteger TR3_len, UnsignedInteger[] CertVerifyTail_ServerFinished_ct, UnsignedInteger CertVerify_tail_len, UnsignedInteger[] SHA_H_Checkpoint, UnsignedInteger[] http3_request_ct, UnsignedInteger CertVerify_tail_head_len, UnsignedInteger http3_request_head_len) {
+
+    // INPUTS ARE CORRECT 
+
+
+
+
+
+    for (int i = 0; i < http3_request_ct.length; i++) {
+      CircuitGenerator.__getActiveCircuitGenerator().__addDebugInstruction(http3_request_ct[i], "appl_ct");
+    }
+
+    // KEYS ARE CORRECT 
+
+    UnsignedInteger[] SHTS = HKDF.quic_hkdf_expand_derive_secret(HS, "s hs traffic", H2);
+
+    // traffic key and iv for "server handshake" messages 
+    UnsignedInteger[] tk_shs = HKDF.quic_hkdf_expand_derive_tk(SHTS, 16);
+
+    UnsignedInteger[] iv_shs = HKDF.quic_hkdf_expand_derive_iv(SHTS, 12);
+
+    // XOR original IV with the packet number 
+    iv_shs[iv_shs.length - 1].assign(iv_shs[iv_shs.length - 1].xorBitwise(new BigInteger("" + 0x02)), 8);
+
+    UnsignedInteger TR7_len = TR3_len.subtract(UnsignedInteger.instantiateFrom(8, 36)).copy(16);
+
+    // si deve decifrare tutto il CRYPTO con il corretto IV xorato con il packet number, calcolo Offset in python 
+
+    // Len della head, gcm_block_number e offset passati in input 
+
+    // To decrypt the tail, we need to calculate the GCM counter block number 
+    UnsignedInteger gcm_block_number = UnsignedInteger.instantiateFrom(8, CertVerify_tail_head_len.div(UnsignedInteger.instantiateFrom(16, 16))).copy(8);
+
+    // Additionally, the tail might not start perfectly at the start of a block 
+    // That is, the length of head may not be a multiple of 16 
+    UnsignedInteger offset = UnsignedInteger.instantiateFrom(8, CertVerify_tail_head_len.mod(UnsignedInteger.instantiateFrom(16, 16))).copy(8);
+
+
+    // This function decrypts the tail with the specific GCM block number and offset within the block (VERY CONVENIENT) 
+    UnsignedInteger[] CertVerifyTail_ServerFinished = AES_GCM.aes_gcm_decrypt_128bytes_middle(tk_shs, iv_shs, CertVerifyTail_ServerFinished_ct, gcm_block_number.copy(8), offset.copy(8));
+
+
+    // This function calculates the hash of TR3 and TR7 where TR7 is TR3 without the last 36 characters 
+    // starting with the SHA_H_Checkpoint provided as a checkpoint state of SHA that is common to both transcripts. 
+    // The inputs are: 
+    // - the checkpoint state 
+    // - the length of TR3 and TR7 (the latter must be a prefix of the former) 
+    // - the tail of TR3 (the part after the checkpoint) 
+    // - the length of the tail up to TR3 
+    // - the length of the tail up to TR7 
+
+
+    UnsignedInteger[][] H7_H3 = SHA2.double_sha_from_checkpoint(SHA_H_Checkpoint, TR3_len.copy(16), TR7_len.copy(16), CertVerifyTail_ServerFinished, CertVerify_tail_len.add(UnsignedInteger.instantiateFrom(8, 36)).copy(8), CertVerify_tail_len.copy(8));
+
+    UnsignedInteger[] H_7 = H7_H3[0];
+    UnsignedInteger[] H_3 = H7_H3[1];
+
+    // Derive the SF value from transcript hash H7 up to Certificate Verify 
+    UnsignedInteger[] fk_S = HKDF.quic_hkdf_expand_derive_secret(SHTS, "finished", (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{0}, 8));
+    UnsignedInteger[] SF_calculated = HKDF.hmac(fk_S, H_7);
+
+
+    UnsignedInteger[] SF_transcript = (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{32}, 8);
+    SmartMemory<UnsignedInteger> CertVerifyTail_ServerFinished_RAM = new SmartMemory(CertVerifyTail_ServerFinished, UnsignedInteger.__getClassRef(), new Object[]{"8"});
+    for (int i = 0; i < 32; i++) {
+      SF_transcript[i].assign(CertVerifyTail_ServerFinished_RAM.read(UnsignedInteger.instantiateFrom(8, i).add(CertVerify_tail_len).add(UnsignedInteger.instantiateFrom(8, 4))), 8);
+    }
+
+
+    // Verify that the two SF values are identical 
+    Util.combine_8_into_256(SF_calculated).forceEqual(Util.combine_8_into_256(SF_transcript));
+
+    // OK 
+    UnsignedInteger[] dHS = HKDF.quic_hkdf_expand_derive_secret(HS, "derived", SHA2.hash_of_empty());
+
+    UnsignedInteger[] MS = HKDF.hkdf_extract(dHS, Util.new_zero_array(32));
+
+    // OK 
+    UnsignedInteger[] CATS = HKDF.quic_hkdf_expand_derive_secret(MS, "c ap traffic", H_3);
+
+    // client application traffic key, iv 
+    UnsignedInteger[] tk_capp = HKDF.quic_hkdf_expand_derive_tk(CATS, 16);
+    UnsignedInteger[] iv_capp = HKDF.quic_hkdf_expand_derive_iv(CATS, 12);
+    iv_capp[iv_capp.length - 1].assign(iv_capp[iv_capp.length - 1].xorBitwise(new BigInteger("" + 0x05)), 8);
+
+    UnsignedInteger http3_request_gcm_block_number = UnsignedInteger.instantiateFrom(8, http3_request_head_len.div(UnsignedInteger.instantiateFrom(16, 16))).copy(8);
+
+    UnsignedInteger[] http3_request = AES_GCM.aes_gcm_decrypt(tk_capp, iv_capp, http3_request_ct);
+    for (int i = 0; i < http3_request.length; i++) {
+      if (i + 4 >= http3_request.length) {
+        http3_request[i].assign(http3_request[http3_request.length - 1], 8);
+      } else {
+        http3_request[i].assign(http3_request[i + 4], 8);
+      }
+    }
+
+    return new UnsignedInteger[][]{http3_request, tk_shs, iv_shs, tk_capp, iv_capp, H_3, SF_calculated};
+  }
+
+
+
+
+
+
+
+  public static UnsignedInteger[][] quic_get1RTT_HS_new_POL(UnsignedInteger[] HS, UnsignedInteger[] H2, UnsignedInteger TR3_len, UnsignedInteger[] CertVerifyTail_ServerFinished_ct, UnsignedInteger CertVerify_tail_len, UnsignedInteger[] SHA_H_Checkpoint, UnsignedInteger[] http3_request_ct, UnsignedInteger CertVerify_tail_head_len, UnsignedInteger http3_request_head_len, int max_policy_len) {
+
+    // INPUTS ARE CORRECT 
+
+
+
+
+
+
+    // KEYS ARE CORRECT 
+
+    UnsignedInteger[] SHTS = HKDF.quic_hkdf_expand_derive_secret(HS, "s hs traffic", H2);
+
+    // traffic key and iv for "server handshake" messages 
+    UnsignedInteger[] tk_shs = HKDF.quic_hkdf_expand_derive_tk(SHTS, 16);
+
+    UnsignedInteger[] iv_shs = HKDF.quic_hkdf_expand_derive_iv(SHTS, 12);
+
+    // XOR original IV with the packet number 
+    iv_shs[iv_shs.length - 1].assign(iv_shs[iv_shs.length - 1].xorBitwise(new BigInteger("" + 0x02)), 8);
+
+    UnsignedInteger TR7_len = TR3_len.subtract(UnsignedInteger.instantiateFrom(8, 36)).copy(16);
+
+    // si deve decifrare tutto il CRYPTO con il corretto IV xorato con il packet number, calcolo Offset in python 
+
+    // Len della head, gcm_block_number e offset passati in input 
+
+    // To decrypt the tail, we need to calculate the GCM counter block number 
+    UnsignedInteger gcm_block_number = UnsignedInteger.instantiateFrom(8, CertVerify_tail_head_len.div(UnsignedInteger.instantiateFrom(16, 16))).copy(8);
+
+    // Additionally, the tail might not start perfectly at the start of a block 
+    // That is, the length of head may not be a multiple of 16 
+    UnsignedInteger offset = UnsignedInteger.instantiateFrom(8, CertVerify_tail_head_len.mod(UnsignedInteger.instantiateFrom(16, 16))).copy(8);
+
+
+    // This function decrypts the tail with the specific GCM block number and offset within the block (VERY CONVENIENT) 
+    UnsignedInteger[] CertVerifyTail_ServerFinished = AES_GCM.aes_gcm_decrypt_128bytes_middle(tk_shs, iv_shs, CertVerifyTail_ServerFinished_ct, gcm_block_number.copy(8), offset.copy(8));
+
+
+    // This function calculates the hash of TR3 and TR7 where TR7 is TR3 without the last 36 characters 
+    // starting with the SHA_H_Checkpoint provided as a checkpoint state of SHA that is common to both transcripts. 
+    // The inputs are: 
+    // - the checkpoint state 
+    // - the length of TR3 and TR7 (the latter must be a prefix of the former) 
+    // - the tail of TR3 (the part after the checkpoint) 
+    // - the length of the tail up to TR3 
+    // - the length of the tail up to TR7 
+
+
+    UnsignedInteger[][] H7_H3 = SHA2.double_sha_from_checkpoint(SHA_H_Checkpoint, TR3_len.copy(16), TR7_len.copy(16), CertVerifyTail_ServerFinished, CertVerify_tail_len.add(UnsignedInteger.instantiateFrom(8, 36)).copy(8), CertVerify_tail_len.copy(8));
+
+    UnsignedInteger[] H_7 = H7_H3[0];
+    UnsignedInteger[] H_3 = H7_H3[1];
+
+    // Derive the SF value from transcript hash H7 up to Certificate Verify 
+    UnsignedInteger[] fk_S = HKDF.quic_hkdf_expand_derive_secret(SHTS, "finished", (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{0}, 8));
+    UnsignedInteger[] SF_calculated = HKDF.hmac(fk_S, H_7);
+
+
+    UnsignedInteger[] SF_transcript = (UnsignedInteger[]) UnsignedInteger.createZeroArray(CircuitGenerator.__getActiveCircuitGenerator(), new int[]{32}, 8);
+    SmartMemory<UnsignedInteger> CertVerifyTail_ServerFinished_RAM = new SmartMemory(CertVerifyTail_ServerFinished, UnsignedInteger.__getClassRef(), new Object[]{"8"});
+    for (int i = 0; i < 32; i++) {
+      SF_transcript[i].assign(CertVerifyTail_ServerFinished_RAM.read(UnsignedInteger.instantiateFrom(8, i).add(CertVerify_tail_len).add(UnsignedInteger.instantiateFrom(8, 4))), 8);
+    }
+
+
+    // Verify that the two SF values are identical 
+    Util.combine_8_into_256(SF_calculated).forceEqual(Util.combine_8_into_256(SF_transcript));
+
+    // OK 
+    UnsignedInteger[] dHS = HKDF.quic_hkdf_expand_derive_secret(HS, "derived", SHA2.hash_of_empty());
+
+    UnsignedInteger[] MS = HKDF.hkdf_extract(dHS, Util.new_zero_array(32));
+
+    // OK 
+    UnsignedInteger[] CATS = HKDF.quic_hkdf_expand_derive_secret(MS, "c ap traffic", H_3);
+
+    // client application traffic key, iv 
+    UnsignedInteger[] tk_capp = HKDF.quic_hkdf_expand_derive_tk(CATS, 16);
+    UnsignedInteger[] iv_capp = HKDF.quic_hkdf_expand_derive_iv(CATS, 12);
+    iv_capp[iv_capp.length - 1].assign(iv_capp[iv_capp.length - 1].xorBitwise(new BigInteger("" + 0x05)), 8);
+
+    UnsignedInteger http3_request_gcm_block_number = UnsignedInteger.instantiateFrom(8, http3_request_head_len.div(UnsignedInteger.instantiateFrom(16, 16))).copy(8);
+    UnsignedInteger http3_request_offset = UnsignedInteger.instantiateFrom(8, http3_request_head_len.mod(UnsignedInteger.instantiateFrom(16, 16))).copy(8);
+
+
+    UnsignedInteger[] http3_request = AES_GCM.aes_gcm_decrypt_POLbytes_middle(tk_capp, iv_capp, http3_request_ct, http3_request_gcm_block_number.copy(8), http3_request_offset.copy(8), max_policy_len);
+
+    return new UnsignedInteger[][]{http3_request, tk_shs, iv_shs, tk_capp, iv_capp, H_3, SF_calculated};
+  }
 
 
 

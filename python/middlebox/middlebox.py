@@ -43,10 +43,16 @@ def upload_file():
     print("\n\n[+] Proof received!\n\n")
 
     if args.test:
-        out2= out2 + [["Proof received", time.time()-start_time]]
+        out2 = out2 + [["Proof received", time.time()-start_time]]
 
-    # jrun = ((f'java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.HTTP3_String pub ../middlebox/files/params.txt 0000d4d7508a089d5c0b8170dc69a659518c625b6a224c7a9894d35054ff {client_random} 1').split())        # LOCALHOST
-    jrun = ((f'java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.HTTP3_String pub ../middlebox/files/params.txt 0000d4d7508d0be25c2e3cb840b8ae34d32cff518c625b6a224c7a9894d35054ff {client_random} 1').split())    # TESTBED
+    jrun = ((f'java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.HTTP3_String pub ../middlebox/files/params.txt 0000d4d7508a089d5c0b8170dc69a659518c625b6a224c7a9894d35054ff {client_random} 1').split())        # LOCALHOST
+    # jrun = ((f'java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.HTTP3_String pub ../middlebox/files/params.txt 0000d4d7508d0be25c2e3cb840b8ae34d32cff518c625b6a224c7a9894d35054ff {client_random} 1').split())    # TESTBED
+    
+    # FULL
+    # jrun = ((f'java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.Test_HTTP3_String_full pub ../middlebox/files/params.txt 0000d4d7508a089d5c0b8170dc69a659518c625b6a224c7a9894d35054ff {client_random} 1 300 100').split())        # LOCALHOST
+    
+    # POL
+    # jrun = ((f'java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.Test_HTTP3_String_POL pub ../middlebox/files/params.txt 0000d4d7508a089d5c0b8170dc69a659518c625b6a224c7a9894d35054ff {client_random} 1 100').split())        # LOCALHOST
                                                                                                                                                                      
     if args.test:
         try:
@@ -82,6 +88,13 @@ def upload_file():
         
         try:
             subprocess.run((f'../libsnark/build/libsnark/jsnark_interface/run_zkmb files/HTTP3_String.arith files/HTTP3_String_{client_random}1.pub.in verify {filename}').split()).check_returncode()
+
+            # FULL
+            # subprocess.run((f'../libsnark/build/libsnark/jsnark_interface/run_zkmb files/Test_HTTP3_String_full.arith files/Test_HTTP3_String_full_{client_random}1.pub.in verify {filename}').split()).check_returncode()
+
+            # POL
+            # subprocess.run((f'../libsnark/build/libsnark/jsnark_interface/run_zkmb files/Test_HTTP3_String_POL.arith files/Test_HTTP3_String_POL_{client_random}1.pub.in verify {filename}').split()).check_returncode()
+        
         except subprocess.CalledProcessError:
             print("Wrong libsnark parameters! " + client_random + " 1")
             Response(status=403)
@@ -94,32 +107,7 @@ def upload_file():
 def return_file():
     response = make_response(send_file("files/provKey.bin", mimetype='application/octet-stream'))
     return response
-        
 
-# @app.route('/parameters', methods=['GET'])
-# def return_params():
-#     if(request.headers['Client-ID'] in client_list):
-#         print(request.headers['Client-ID'])
-#         response = Response(status=200)
-#         response.headers['Allowed-URL'] = client_url[request.headers['Client-ID']]
-
-#         return response
-#     else:
-#         return Response(status=401)
-        
-
-# @app.route('/url-list', methods=['GET'])
-# def return_urllist():
-#     if(request.headers['Client-ID'] in client_list):
-#         print(request.headers['Client-ID'])
-#         if(anon):
-#             #TODO: generate tree and root file
-#             response = make_response(send_file("files/anon_tree.txt", mimetype='text/plain'))
-#         else:
-#             response = make_response(send_file("files/allowlist.txt", mimetype='text/plain'))
-#         return response
-#     else:
-#         return Response(status=401)
 
 
 
@@ -138,6 +126,14 @@ if __name__ == '__main__':
 
         jrun = (('java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.HTTP3_String pub ../middlebox/files/setup.txt 0000d4d7508a089d5c0b8170dc69a659518c625b6a224c7a9894d35054ff circuitgen 1').split())
         lrun = (('../libsnark/build/libsnark/jsnark_interface/run_zkmb ../middlebox/files/HTTP3_String.arith setup').split())
+
+        # FULL
+        # jrun = (('java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.Test_HTTP3_String_full pub ../middlebox/files/setup.txt 0000d4d7508a089d5c0b8170dc69a659518c625b6a224c7a9894d35054ff circuitgen 1 300 100').split())
+        # lrun = (('../libsnark/build/libsnark/jsnark_interface/run_zkmb ../middlebox/files/Test_HTTP3_String_full.arith setup').split())
+
+        # POL
+        # jrun = (('java -cp ../xjsnark_decompiled/backend_bin_mod/:../xjsnark_decompiled/xjsnark_bin/ xjsnark.PolicyCheck.Test_HTTP3_String_POL pub ../middlebox/files/setup.txt 0000d4d7508a089d5c0b8170dc69a659518c625b6a224c7a9894d35054ff circuitgen 1 100').split())
+        # lrun = (('../libsnark/build/libsnark/jsnark_interface/run_zkmb ../middlebox/files/Test_HTTP3_String_POL.arith setup').split())
 
         if args.test:
             jname = "xjsnark_setup_HTTP3_String.json"

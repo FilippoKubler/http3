@@ -394,7 +394,7 @@ public class HTTP_String extends CircuitGenerator {
   public static String token_str;
   public static String randomid;
   public static String pktnum;
-  public static final int MAX_DNS_CT_LEN = 500;
+  public static final int MAX_DNS_CT_LEN = 128;
   public static final int MAX_URL_LEN = 20;
   @Override
   public void __defineInputs() {
@@ -490,7 +490,6 @@ public class HTTP_String extends CircuitGenerator {
 
     UnsignedInteger[] SHA_H_Checkpoint_32 = xjsnark.util_and_sha.Util.convert_8_to_32(SHA_H_Checkpoint);
     values = TLSKeySchedule.get1RTT_HS_new(HS, H2, TR3_len.copy(16), CertVerify_len.copy(16), CertVerify_ct_tail, ServerFinished_ct, CertVerify_tail_len.copy(8), SHA_H_Checkpoint_32, appl_ct);
-    string_http = LabelExtraction.firewall(values[0], url_bytes, url_length.copy(8));
   }
   public String get_tail_minus_36(String line) {
     String output = "";
