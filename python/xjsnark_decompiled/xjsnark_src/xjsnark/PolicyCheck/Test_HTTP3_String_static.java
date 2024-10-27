@@ -26,6 +26,8 @@ public class Test_HTTP3_String_static extends CircuitGenerator {
     allowed_url = args[2];
     randomid = args[3];
     pktnum = args[4];
+    MAX_HTTP3_LEN = Integer.parseInt(args[5]);
+    MAX_POLICY_LEN = Integer.parseInt(args[6]);
     new Test_HTTP3_String_static(args);
   }
 
@@ -297,8 +299,8 @@ public class Test_HTTP3_String_static extends CircuitGenerator {
   public static String transcript_path;
   public static String randomid;
   public static String pktnum;
-  public static final int MAX_HTTP3_LEN = 300;
-  public static final int MAX_POLICY_LEN = 100;
+  public static int MAX_HTTP3_LEN;
+  public static int MAX_POLICY_LEN;
   @Override
   public void __defineInputs() {
     super.__defineInputs();
